@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { queueApi, visitsApi } from '@/lib/api';
+import { queueApi } from '@/lib/api';
 import { useSSE } from '@/hooks/useSSE';
 import { format } from 'date-fns';
 import { Clock, Users, Activity, LogOut, ExternalLink } from 'lucide-react';

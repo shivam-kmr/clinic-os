@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { queueApi } from '@/lib/api';
 import { useSSE } from '@/hooks/useSSE';
 import { Clock, LogOut } from 'lucide-react';
 
@@ -79,17 +78,6 @@ export default function WaitingRoom() {
       refetch();
     }
   }, [sseData, refetch]);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'IN_PROGRESS':
-        return 'bg-green-100 border-green-300';
-      case 'CHECKED_IN':
-        return 'bg-blue-100 border-blue-300';
-      default:
-        return 'bg-white';
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">

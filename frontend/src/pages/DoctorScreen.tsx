@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { queueApi, doctorsApi } from '@/lib/api';
 import { useSSE } from '@/hooks/useSSE';
 import { format } from 'date-fns';
-import { User, Clock, CheckCircle, XCircle, SkipForward, LogOut } from 'lucide-react';
+import { User, Clock, CheckCircle, XCircle, LogOut } from 'lucide-react';
 
 interface QueueItem {
   id: string;

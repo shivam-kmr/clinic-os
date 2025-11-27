@@ -5,15 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { setupApi } from '@/lib/api';
-import { LogOut, Building2, Settings, Users, UserPlus, Plus, Trash2, UserCheck } from 'lucide-react';
-
-interface Hospital {
-  id: string;
-  name: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-}
+import { LogOut, Building2, Settings, Users, UserPlus, Plus, UserCheck } from 'lucide-react';
 
 interface Department {
   id: string;
@@ -21,12 +13,41 @@ interface Department {
   description?: string;
 }
 
-interface Doctor {
-  id: string;
+interface CreateHospitalData {
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  subdomain?: string;
+  managerEmails?: string[];
+}
+
+interface UpdateConfigData {
+  queueType?: string;
+  tokenPrefix?: string;
+  [key: string]: unknown;
+}
+
+interface CreateDepartmentData {
+  name: string;
+  description?: string;
+}
+
+interface CreateDoctorData {
   email: string;
+  password: string;
   firstName: string;
   lastName: string;
   specialization?: string;
+  departmentId?: string;
+}
+
+interface CreateReceptionistData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  departmentId?: string;
 }
 
 export default function HospitalSetup() {
@@ -49,7 +70,7 @@ export default function HospitalSetup() {
 
   // Create hospital mutation
   const createHospitalMutation = useMutation({
-    mutationFn: (data: any) => setupApi.createHospital(data),
+    mutationFn: (data: CreateHospitalData) => setupApi.createHospital(data),
     onSuccess: () => {
       // Update user data in localStorage
       const userStr = localStorage.getItem('user');
@@ -65,7 +86,7 @@ export default function HospitalSetup() {
 
   // Update config mutation
   const updateConfigMutation = useMutation({
-    mutationFn: (data: any) => setupApi.updateConfig(data),
+    mutationFn: (data: UpdateConfigData) => setupApi.updateConfig(data),
     onSuccess: () => {
       refetch();
     },
@@ -73,7 +94,7 @@ export default function HospitalSetup() {
 
   // Create department mutation
   const createDepartmentMutation = useMutation({
-    mutationFn: (data: any) => setupApi.createDepartment(data),
+    mutationFn: (data: CreateDepartmentData) => setupApi.createDepartment(data),
     onSuccess: () => {
       refetch();
       queryClient.invalidateQueries({ queryKey: ['hospital-setup'] });
@@ -82,7 +103,7 @@ export default function HospitalSetup() {
 
   // Create doctor mutation
   const createDoctorMutation = useMutation({
-    mutationFn: (data: any) => setupApi.createDoctor(data),
+    mutationFn: (data: CreateDoctorData) => setupApi.createDoctor(data),
     onSuccess: () => {
       refetch();
       queryClient.invalidateQueries({ queryKey: ['hospital-setup'] });
@@ -91,7 +112,7 @@ export default function HospitalSetup() {
 
   // Create receptionist mutation
   const createReceptionistMutation = useMutation({
-    mutationFn: (data: any) => setupApi.createReceptionist(data),
+    mutationFn: (data: CreateReceptionistData) => setupApi.createReceptionist(data),
     onSuccess: () => {
       refetch();
       queryClient.invalidateQueries({ queryKey: ['hospital-setup'] });
@@ -182,7 +203,7 @@ export default function HospitalSetup() {
         {activeStep === 'hospital' && (
           <HospitalForm
             hospital={hospital}
-            onSubmit={(data) => createHospitalMutation.mutate(data)}
+            onSubmit={(data: CreateHospitalData) => createHospitalMutation.mutate(data)}
             isLoading={createHospitalMutation.isPending}
           />
         )}
@@ -190,7 +211,7 @@ export default function HospitalSetup() {
         {activeStep === 'config' && hasHospital && (
           <ConfigForm
             config={setupData?.config}
-            onSubmit={(data) => updateConfigMutation.mutate(data)}
+            onSubmit={(data: UpdateConfigData) => updateConfigMutation.mutate(data)}
             isLoading={updateConfigMutation.isPending}
           />
         )}
@@ -198,7 +219,7 @@ export default function HospitalSetup() {
         {activeStep === 'departments' && hasHospital && (
           <DepartmentsSection
             departments={setupData?.departments || []}
-            onCreate={(data) => createDepartmentMutation.mutate(data)}
+            onCreate={(data: CreateDepartmentData) => createDepartmentMutation.mutate(data)}
             isLoading={createDepartmentMutation.isPending}
           />
         )}
@@ -207,7 +228,7 @@ export default function HospitalSetup() {
           <DoctorsSection
             departments={setupData?.departments || []}
             doctors={setupData?.doctors || []}
-            onCreate={(data) => createDoctorMutation.mutate(data)}
+            onCreate={(data: CreateDoctorData) => createDoctorMutation.mutate(data)}
             isLoading={createDoctorMutation.isPending}
           />
         )}
@@ -216,7 +237,7 @@ export default function HospitalSetup() {
           <ReceptionistsSection
             departments={setupData?.departments || []}
             receptionists={setupData?.receptionists || []}
-            onCreate={(data) => createReceptionistMutation.mutate(data)}
+            onCreate={(data: CreateReceptionistData) => createReceptionistMutation.mutate(data)}
             isLoading={createReceptionistMutation.isPending}
           />
         )}
@@ -240,8 +261,8 @@ function HospitalForm({ hospital, onSubmit, isLoading }: any) {
     e.preventDefault();
     const managerEmailsArray = formData.managerEmails
       .split(',')
-      .map((email) => email.trim())
-      .filter((email) => email.length > 0);
+      .map((email: string) => email.trim())
+      .filter((email: string) => email.length > 0);
     onSubmit({
       ...formData,
       managerEmails: managerEmailsArray,

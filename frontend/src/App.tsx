@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import ReceptionDashboard from './pages/ReceptionDashboard';
 import DoctorScreen from './pages/DoctorScreen';
