@@ -74,6 +74,7 @@ export class ReceptionController {
       }
 
       const {
+        patientId,
         phone,
         firstName,
         lastName,
@@ -100,6 +101,7 @@ export class ReceptionController {
 
       const result = await ReceptionIntakeService.intakeWalkIn({
         hospitalId: req.user.hospitalId,
+        patientId: patientId ? String(patientId) : null,
         patient: {
           phone: String(phone),
           firstName: String(firstName),
@@ -114,6 +116,24 @@ export class ReceptionController {
 
       res.status(201).json({ data: result });
     } catch (error: any) {
+      if (error?.message === 'MULTIPLE_PATIENTS_FOUND') {
+        res.status(409).json({
+          error: {
+            code: 'MULTIPLE_PATIENTS_FOUND',
+            message: 'Multiple patient profiles exist for this phone. Select a patient profile before creating a token.',
+          },
+        });
+        return;
+      }
+      if (error?.message === 'PATIENT_NOT_FOUND') {
+        res.status(404).json({
+          error: {
+            code: 'PATIENT_NOT_FOUND',
+            message: 'Selected patient profile not found',
+          },
+        });
+        return;
+      }
       if (error?.message === 'FORBIDDEN_DEPARTMENT_SCOPE') {
         res.status(403).json({
           error: { code: 'FORBIDDEN', message: 'Receptionist is not allowed for this department' },

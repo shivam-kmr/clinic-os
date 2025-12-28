@@ -6,6 +6,7 @@ import { ConfigResolverService } from './ConfigResolverService';
 
 export type ReceptionIntakeInput = {
   hospitalId: string;
+  patientId?: string | null;
   patient: {
     phone: string;
     firstName: string;
@@ -39,11 +40,32 @@ export class ReceptionIntakeService {
       const phone = input.patient.phone.trim();
       if (!phone) throw new Error('phone is required');
 
-      // Upsert patient by phone within hospital
-      let patient = await Patient.findOne({
-        where: { hospitalId, phone },
-        transaction,
-      });
+      // Patient selection rules:
+      // - If patientId is provided, it MUST exist (scoped to hospital) and we update that record.
+      // - If patientId is not provided:
+      //    - 0 matches by phone -> create
+      //    - 1 match by phone  -> update that record
+      //    - >1 matches by phone -> require explicit selection to avoid overwriting wrong profile
+      let patient: Patient | null = null;
+
+      if (input.patientId) {
+        patient = await Patient.findOne({
+          where: { id: input.patientId, hospitalId },
+          transaction,
+        });
+        if (!patient) throw new Error('PATIENT_NOT_FOUND');
+      } else {
+        const matches = await Patient.findAll({
+          where: { hospitalId, phone },
+          transaction,
+          order: [['updatedAt', 'DESC']],
+          limit: 2,
+        });
+        if (matches.length > 1) {
+          throw new Error('MULTIPLE_PATIENTS_FOUND');
+        }
+        patient = matches[0] || null;
+      }
 
       const dob = this.approximateDobFromAge(input.patient.age);
 
