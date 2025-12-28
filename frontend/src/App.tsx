@@ -10,6 +10,10 @@ import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import Team from './pages/Team';
 import AppShell from './components/AppShell';
+import TestimonialsPage from './pages/Testimonials';
+import CertificationsPage from './pages/Certifications';
+import ScheduleDemoPage from './pages/ScheduleDemo';
+import { CalDemoInit } from './components/CalDemoPopup';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
@@ -57,6 +61,7 @@ function App() {
   // Only wrap with GoogleOAuthProvider if client ID is configured
   const AppContent = () => (
     <BrowserRouter>
+      <CalDemoInit />
       <Routes>
         <Route
           path="/"
@@ -66,6 +71,9 @@ function App() {
             </PublicOnly>
           }
         />
+        <Route path="/testimonials" element={<TestimonialsPage />} />
+        <Route path="/certifications" element={<CertificationsPage />} />
+        <Route path="/schedule-demo" element={<ScheduleDemoPage />} />
         <Route
           path="/login"
           element={

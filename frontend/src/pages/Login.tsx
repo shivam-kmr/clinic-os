@@ -202,12 +202,7 @@ export default function Login() {
               </Button>
             </div>
 
-            <div className="mt-4 text-sm text-center text-gray-600">
-              <p>Demo credentials:</p>
-              <p className="text-xs mt-1">
-                receptionist@demohospital.com / password123
-              </p>
-            </div>
+           
           </CardContent>
         </Card>
       </div>

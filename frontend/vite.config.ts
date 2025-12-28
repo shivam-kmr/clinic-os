@@ -14,6 +14,9 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    // Prevent "Invalid hook call" issues caused by multiple React copies being bundled
+    // (can happen with some embeds/widgets under Vite optimizeDeps).
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },
   server: {
     port: 5173,

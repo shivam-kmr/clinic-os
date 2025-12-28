@@ -10,19 +10,20 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@calcom/embed-react": "^1.5.3",
+    "@react-oauth/google": "^0.12.1",
+    "@tanstack/react-query": "^5.17.9",
+    "axios": "^1.6.5",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "date-fns": "^3.0.0",
+    "lucide-react": "^0.303.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.1",
-    "@tanstack/react-query": "^5.17.9",
-    "axios": "^1.6.5",
-    "date-fns": "^3.0.0",
-    "zustand": "^4.4.7",
-    "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.0",
-    "lucide-react": "^0.303.0",
-    "class-variance-authority": "^0.7.0",
     "tailwindcss-animate": "^1.0.7",
-    "@react-oauth/google": "^0.12.1"
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@types/react": "^18.2.47",
@@ -40,4 +41,3 @@
     "vite": "^5.0.8"
   }
 }
-
