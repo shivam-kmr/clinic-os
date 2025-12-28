@@ -175,6 +175,113 @@ export class ReceptionController {
       next(error);
     }
   }
+
+  /**
+   * Get live queue metrics (scoped to active hospital; receptionist may be department-scoped)
+   * GET /api/v1/reception/metrics/live
+   *
+   * Returns:
+   * - totalInQueue: count of visits currently in queue statuses
+   * - inProgress: count of IN_PROGRESS visits
+   * - averageWaitMinutes: approximate estimated wait in minutes based on doctor pace patterns
+   */
+  static async metricsLive(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user?.hospitalId) {
+        res.status(400).json({
+          error: { code: 'BAD_REQUEST', message: 'Hospital context required' },
+        });
+        return;
+      }
+
+      const hospitalId = req.user.hospitalId;
+      const membership = (req as any).membership as any | undefined;
+      const scopedDepartmentId =
+        req.user.role === 'RECEPTIONIST' ? (membership?.departmentId as string | null | undefined) : null;
+
+      const queueStatuses = ['WAITING', 'CHECKED_IN', 'IN_PROGRESS', 'ON_HOLD', 'CARRYOVER'];
+
+      const whereQueue: any = {
+        hospitalId,
+        status: { [Op.in]: queueStatuses },
+      };
+      if (scopedDepartmentId) whereQueue.departmentId = scopedDepartmentId;
+
+      const whereDoctors: any = {
+        hospitalId,
+        status: 'ACTIVE',
+      };
+      if (scopedDepartmentId) whereDoctors.departmentId = scopedDepartmentId;
+
+      const [totalInQueue, inProgress, activeDoctorIds, paceRows] = await Promise.all([
+        Visit.count({ where: whereQueue }),
+        Visit.count({ where: { ...whereQueue, status: 'IN_PROGRESS' } }),
+        Doctor.findAll({
+          where: whereDoctors,
+          attributes: ['id'],
+          raw: true,
+        }).then((rows: any[]) => rows.map((r) => String(r.id))),
+        VisitHistory.findAll({
+          where: {
+            hospitalId,
+            ...(scopedDepartmentId ? { departmentId: scopedDepartmentId } : {}),
+            actualConsultationDuration: { [Op.ne]: null },
+            completedAt: { [Op.gte]: sequelize.literal(`NOW() - INTERVAL '7 days'`) } as any,
+          } as any,
+          attributes: ['doctorId', [sequelize.fn('AVG', sequelize.col('actualConsultationDuration')), 'avgMinutes']],
+          group: ['doctorId'],
+          raw: true,
+        }),
+      ]);
+
+      // Build pace map (doctorId -> minutes), default 15
+      const paceByDoctor: Record<string, number> = {};
+      for (const r of paceRows as any[]) {
+        const avg = Number(r.avgMinutes);
+        if (Number.isFinite(avg) && avg > 0) {
+          paceByDoctor[String(r.doctorId)] = Math.max(3, Math.min(60, Math.round(avg)));
+        }
+      }
+
+      // Get queue counts per doctor in one query
+      const countsByDoctor = await Visit.findAll({
+        where: whereQueue,
+        attributes: ['doctorId', [sequelize.fn('COUNT', sequelize.col('id')), 'cnt']],
+        group: ['doctorId'],
+        raw: true,
+      });
+
+      let weightedSum = 0;
+      let weightedN = 0;
+      for (const row of countsByDoctor as any[]) {
+        const doctorId = String(row.doctorId);
+        const k = Number(row.cnt) || 0;
+        if (!doctorId || k <= 0) continue;
+
+        // Only consider active doctors for pace; fallback to 15 if unknown.
+        const pace = paceByDoctor[doctorId] || 15;
+
+        // Approx average wait for a FIFO queue of length k:
+        // waits are 0, pace, 2*pace, ... (k-1)*pace => avg = ((k-1)/2)*pace
+        const avgWaitForDoctor = ((k - 1) / 2) * pace;
+        weightedSum += avgWaitForDoctor * k;
+        weightedN += k;
+      }
+
+      const averageWaitMinutes = weightedN > 0 ? Math.max(0, Math.round(weightedSum / weightedN)) : 0;
+
+      res.json({
+        data: {
+          totalInQueue,
+          inProgress,
+          averageWaitMinutes,
+          activeDoctors: activeDoctorIds.length,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 

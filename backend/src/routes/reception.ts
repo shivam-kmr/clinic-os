@@ -14,6 +14,11 @@ router.get(
   requireRole('RECEPTIONIST', 'HOSPITAL_OWNER', 'HOSPITAL_MANAGER', 'SUPERADMIN'),
   ReceptionController.metricsToday
 );
+router.get(
+  '/metrics/live',
+  requireRole('RECEPTIONIST', 'HOSPITAL_OWNER', 'HOSPITAL_MANAGER', 'SUPERADMIN'),
+  ReceptionController.metricsLive
+);
 
 export default router;
 
