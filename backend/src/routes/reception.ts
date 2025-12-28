@@ -10,6 +10,11 @@ router.use(requireHospitalContext);
 
 router.post('/intake', requireRole('RECEPTIONIST', 'HOSPITAL_OWNER', 'HOSPITAL_MANAGER', 'SUPERADMIN'), ReceptionController.intake);
 router.get(
+  '/patients/by-phone',
+  requireRole('RECEPTIONIST', 'HOSPITAL_OWNER', 'HOSPITAL_MANAGER', 'SUPERADMIN'),
+  ReceptionController.patientsByPhone
+);
+router.get(
   '/metrics/today',
   requireRole('RECEPTIONIST', 'HOSPITAL_OWNER', 'HOSPITAL_MANAGER', 'SUPERADMIN'),
   ReceptionController.metricsToday

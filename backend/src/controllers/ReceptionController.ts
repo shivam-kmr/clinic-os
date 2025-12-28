@@ -4,10 +4,23 @@ import { ReceptionIntakeService } from '../services/ReceptionIntakeService';
 import Doctor from '../models/Doctor';
 import Visit from '../models/Visit';
 import VisitHistory from '../models/VisitHistory';
+import Patient from '../models/Patient';
 import { Op } from 'sequelize';
 import sequelize from '../config/database';
 
 export class ReceptionController {
+  private static ageFromDob(dob?: Date | null): number | null {
+    if (!dob) return null;
+    const d = new Date(dob);
+    if (isNaN(d.getTime())) return null;
+    const now = new Date();
+    let age = now.getFullYear() - d.getFullYear();
+    const m = now.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+    if (!Number.isFinite(age) || age < 0 || age > 130) return null;
+    return age;
+  }
+
   private static async assertReceptionistScope(
     req: AuthRequest,
     opts: { departmentId: string; doctorId?: string | null; visitId?: string | null }
@@ -107,6 +120,57 @@ export class ReceptionController {
         });
         return;
       }
+      next(error);
+    }
+  }
+
+  /**
+   * Lookup patient profiles by phone number (scoped to active hospital)
+   * GET /api/v1/reception/patients/by-phone?phone=9876543210
+   */
+  static async patientsByPhone(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user?.hospitalId) {
+        res.status(400).json({
+          error: { code: 'BAD_REQUEST', message: 'Hospital context required' },
+        });
+        return;
+      }
+
+      const phoneRaw = String(req.query.phone || '').trim();
+      const phone = phoneRaw.replace(/\D/g, '');
+
+      if (!phone || phone.length < 7) {
+        res.status(400).json({
+          error: { code: 'BAD_REQUEST', message: 'phone query param is required' },
+        });
+        return;
+      }
+
+      const patients = await Patient.findAll({
+        where: {
+          hospitalId: req.user.hospitalId,
+          phone,
+        },
+        attributes: ['id', 'firstName', 'lastName', 'gender', 'dateOfBirth', 'createdAt', 'updatedAt'],
+        order: [
+          ['updatedAt', 'DESC'],
+          ['createdAt', 'DESC'],
+        ],
+      });
+
+      res.json({
+        data: patients.map((p: any) => ({
+          id: p.id,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          gender: p.gender,
+          age: ReceptionController.ageFromDob(p.dateOfBirth),
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        })),
+      });
+    } catch (error) {
       next(error);
     }
   }
