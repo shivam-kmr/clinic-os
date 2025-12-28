@@ -5,6 +5,8 @@ import HospitalConfig from '../models/HospitalConfig';
 import Department from '../models/Department';
 import Doctor from '../models/Doctor';
 import User from '../models/User';
+import HospitalUser from '../models/HospitalUser';
+import DepartmentConfig from '../models/DepartmentConfig';
 import { publishEvent } from '../config/rabbitmq';
 import { logger } from '../config/logger';
 import sequelize from '../config/database';
@@ -12,10 +14,14 @@ import bcrypt from 'bcryptjs';
 
 export interface CreateHospitalData {
   name: string;
-  address?: string;
+  street?: string;
+  buildingNumber?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
   phone?: string;
   email?: string;
-  subdomain?: string; // e.g., "regencyhospital" for regencyhospital.clinicos.com
   managerEmails?: string[]; // Emails of additional hospital managers/owners
 }
 
@@ -56,6 +62,57 @@ export interface CreateReceptionistData {
 }
 
 export class HospitalSetupService {
+  private static slugFromHospitalName(name: string): string {
+    // Requirement: "all small, without spaces" -> keep alphanumerics only.
+    // Example: "Regency Hospital" -> "regencyhospital"
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '')
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  private static randomSuffix(len = 4): string {
+    const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let out = '';
+    for (let i = 0; i < len; i += 1) {
+      out += alphabet[Math.floor(Math.random() * alphabet.length)];
+    }
+    return out;
+  }
+
+  static async suggestSubdomainFromName(name: string): Promise<{
+    base: string;
+    available: boolean;
+    suggestedSubdomain: string;
+  }> {
+    const base = this.slugFromHospitalName(name);
+
+    // Return early for invalid/too-short names; caller can prompt the user.
+    if (base.length < 3) {
+      return { base, available: false, suggestedSubdomain: base };
+    }
+
+    const existing = await Hospital.findOne({ where: { subdomain: base } });
+    if (!existing) {
+      return { base, available: true, suggestedSubdomain: base };
+    }
+
+    // If taken: base-xxxx (xxxx = 4 alphanumeric).
+    // Ensure uniqueness even if collision happens.
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const candidate = `${base}-${this.randomSuffix(4)}`;
+      const collision = await Hospital.findOne({ where: { subdomain: candidate } });
+      if (!collision) {
+        return { base, available: false, suggestedSubdomain: candidate };
+      }
+    }
+
+    // Extremely unlikely; still return something stable.
+    const fallback = `${base}-${Date.now().toString(36).slice(-4)}`;
+    return { base, available: false, suggestedSubdomain: fallback };
+  }
+
   /**
    * Create hospital and assign to user
    */
@@ -66,58 +123,56 @@ export class HospitalSetupService {
     const transaction = await sequelize.transaction();
 
     try {
-      // Validate subdomain if provided
-      if (data.subdomain) {
-        // Slugify subdomain: lowercase, replace spaces with hyphens, remove special chars
-        const slugified = data.subdomain
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, '-')
-          .replace(/[^a-z0-9-]/g, '');
+      // Always derive subdomain from hospital name (server is the source of truth).
+      // If base is taken, suffix with "-xxxx" (4 chars).
+      const subdomainInfo = await this.suggestSubdomainFromName(data.name);
+      const subdomain = subdomainInfo.suggestedSubdomain;
 
-        if (slugified.length < 3 || slugified.length > 63) {
-          throw new Error('Subdomain must be between 3 and 63 characters');
-        }
-
-        // Check if subdomain is already taken
-        const existing = await Hospital.findOne({
-          where: { subdomain: slugified },
-          transaction,
-        });
-
-        if (existing) {
-          throw new Error('Subdomain is already taken');
-        }
-
-        data.subdomain = slugified;
+      if (subdomain.length < 3 || subdomain.length > 63) {
+        throw new Error('Derived subdomain must be between 3 and 63 characters');
       }
+
+      const addressParts = [
+        data.buildingNumber,
+        data.street,
+        data.city,
+        data.state,
+        data.postalCode,
+        data.country,
+      ].filter(Boolean);
+      const address = addressParts.length ? addressParts.join(', ') : undefined;
 
       // Create hospital
       const hospital = await Hospital.create(
         {
           name: data.name,
-          address: data.address,
+          // Keep legacy address for backwards compatibility (public APIs, etc.)
+          address,
+          street: data.street,
+          buildingNumber: data.buildingNumber,
+          city: data.city,
+          state: data.state,
+          postalCode: data.postalCode,
+          country: data.country,
           phone: data.phone,
           email: data.email,
-          subdomain: data.subdomain,
+          subdomain,
           customDomainVerified: false,
           status: 'ACTIVE',
         },
         { transaction }
       );
 
-      // Update user's hospitalId and role to HOSPITAL_OWNER if not already
-      const user = await User.findByPk(userId, { transaction });
-      if (user) {
-        await user.update(
-          {
-            hospitalId: hospital.id,
-            // If user is not SUPERADMIN, set role to HOSPITAL_OWNER
-            role: user.role === 'SUPERADMIN' ? 'SUPERADMIN' : 'HOSPITAL_OWNER',
-          },
-          { transaction }
-        );
-      }
+      // Create membership for creator as HOSPITAL_OWNER (per-clinic role)
+      await HospitalUser.create(
+        {
+          userId,
+          hospitalId: hospital.id,
+          role: 'HOSPITAL_OWNER',
+          doctorId: null,
+        },
+        { transaction }
+      );
 
       // Create accounts for additional managers if provided
       if (data.managerEmails && data.managerEmails.length > 0) {
@@ -139,7 +194,7 @@ export class HospitalSetupService {
                 firstName: 'Hospital', // Default, should be updated
                 lastName: 'Manager',
                 role: 'HOSPITAL_MANAGER',
-                hospitalId: hospital.id,
+                hospitalId: null, // legacy field; multi-clinic is handled via memberships
               },
               { transaction }
             );
@@ -152,15 +207,20 @@ export class HospitalSetupService {
               tempPassword,
             });
           } else {
-            // User exists - update their hospitalId and role
-            await managerUser.update(
-              {
-                hospitalId: hospital.id,
-                role: 'HOSPITAL_MANAGER',
-              },
-              { transaction }
-            );
+            // User exists - do NOT override their global role/hospital; just grant a membership
           }
+
+          // Ensure membership exists for manager
+          await HospitalUser.findOrCreate({
+            where: { userId: managerUser.id, hospitalId: hospital.id },
+            defaults: {
+              userId: managerUser.id,
+              hospitalId: hospital.id,
+              role: 'HOSPITAL_MANAGER',
+              doctorId: null,
+            },
+            transaction,
+          });
         }
       }
 
@@ -247,6 +307,12 @@ export class HospitalSetupService {
       description: data.description,
     });
 
+    // Create an empty department config row so setup can track configuration completion.
+    await DepartmentConfig.findOrCreate({
+      where: { hospitalId, departmentId: department.id },
+      defaults: { hospitalId, departmentId: department.id, bookingMode: null },
+    });
+
     logger.info(`Department created: ${department.id} in hospital ${hospitalId}`);
     return department;
   }
@@ -276,17 +342,15 @@ export class HospitalSetupService {
             passwordHash,
             firstName: data.firstName,
             lastName: data.lastName,
-            role: 'DOCTOR',
-            hospitalId,
+            role: 'DOCTOR', // legacy/global role (per-clinic role is handled via memberships)
+            hospitalId: null,
           },
           { transaction }
         );
       } else {
-        // Update existing user
+        // Do not override existing user's global role/hospital. Update names only.
         await user.update(
           {
-            hospitalId,
-            role: 'DOCTOR',
             firstName: data.firstName,
             lastName: data.lastName,
           },
@@ -296,7 +360,7 @@ export class HospitalSetupService {
 
       // Check if doctor already exists
       let doctor = await Doctor.findOne({
-        where: { userId: user.id },
+        where: { userId: user.id, hospitalId },
         transaction,
       });
 
@@ -329,6 +393,24 @@ export class HospitalSetupService {
           { transaction }
         );
       }
+
+      // Ensure membership exists for this doctor in this hospital
+      await HospitalUser.findOrCreate({
+        where: { userId: user.id, hospitalId },
+        defaults: {
+          userId: user.id,
+          hospitalId,
+          role: 'DOCTOR',
+          doctorId: doctor.id,
+        },
+        transaction,
+      });
+
+      // If membership existed but doctorId is missing/outdated, update it
+      await HospitalUser.update(
+        { doctorId: doctor.id, role: 'DOCTOR' },
+        { where: { userId: user.id, hospitalId }, transaction }
+      );
 
       await transaction.commit();
 
@@ -377,23 +459,39 @@ export class HospitalSetupService {
             passwordHash,
             firstName: data.firstName,
             lastName: data.lastName,
-            role: 'RECEPTIONIST',
-            hospitalId,
+            role: 'RECEPTIONIST', // legacy/global role
+            hospitalId: null,
           },
           { transaction }
         );
       } else {
-        // Update existing user
+        // Do not override existing user's global role/hospital. Update names only.
         await user.update(
           {
-            hospitalId,
-            role: 'RECEPTIONIST',
             firstName: data.firstName,
             lastName: data.lastName,
           },
           { transaction }
         );
       }
+
+      // Ensure membership exists for receptionist in this hospital
+      await HospitalUser.findOrCreate({
+        where: { userId: user.id, hospitalId },
+        defaults: {
+          userId: user.id,
+          hospitalId,
+          role: 'RECEPTIONIST',
+          doctorId: null,
+          departmentId: data.departmentId || null,
+        },
+        transaction,
+      });
+
+      await HospitalUser.update(
+        { role: 'RECEPTIONIST', departmentId: data.departmentId || null },
+        { where: { userId: user.id, hospitalId }, transaction }
+      );
 
       await transaction.commit();
 
@@ -434,6 +532,11 @@ export class HospitalSetupService {
       order: [['name', 'ASC']],
     });
 
+    const departmentConfigs = await DepartmentConfig.findAll({
+      where: { hospitalId },
+      order: [['createdAt', 'ASC']],
+    });
+
     const doctors = await Doctor.findAll({
       where: { hospitalId },
       include: [
@@ -451,20 +554,30 @@ export class HospitalSetupService {
       order: [['createdAt', 'ASC']],
     });
 
-    // Get receptionists
-    const receptionists = await User.findAll({
+    // Get receptionists via memberships (multi-clinic)
+    const receptionistMemberships = await HospitalUser.findAll({
       where: {
         hospitalId,
         role: 'RECEPTIONIST',
       },
-      attributes: ['id', 'email', 'firstName', 'lastName', 'createdAt'],
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'email', 'firstName', 'lastName', 'createdAt'],
+          required: true,
+        },
+      ],
       order: [['createdAt', 'ASC']],
     });
+
+    const receptionists = receptionistMemberships.map((m: any) => m.user);
 
     return {
       hospital,
       config: config || null,
       departments,
+      departmentConfigs,
       doctors,
       receptionists,
     };

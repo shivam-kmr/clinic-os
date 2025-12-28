@@ -1,6 +1,11 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth';
+import '../models'; // ensure associations are initialized for includes
 import { HospitalSetupService } from '../services/HospitalSetupService';
+import HospitalUser from '../models/HospitalUser';
+import Hospital from '../models/Hospital';
+import Department from '../models/Department';
+import DepartmentConfig from '../models/DepartmentConfig';
 
 export class HospitalSetupController {
   /**
@@ -23,22 +28,7 @@ export class HospitalSetupController {
         return;
       }
 
-      // Check if user already has a hospital
-      if (req.user.hospitalId) {
-        res.status(400).json({
-          error: {
-            code: 'BAD_REQUEST',
-            message: 'User already has a hospital assigned',
-          },
-        });
-        return;
-      }
-
-      // Check if user is HOSPITAL_OWNER or allow if they don't have hospitalId
-      if (req.user.role !== 'HOSPITAL_OWNER' && req.user.role !== 'SUPERADMIN') {
-        // Allow RECEPTIONIST or DOCTOR to create hospital if they don't have one
-        // This enables the setup flow for new users
-      }
+      // Multi-clinic: allow users to create multiple hospitals (they become owner of the new one)
 
       const hospital = await HospitalSetupService.createHospital(
         req.user.id,
@@ -114,6 +104,102 @@ export class HospitalSetupController {
       res.status(201).json({
         data: department,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get department configuration
+   * GET /api/v1/setup/departments/:departmentId/config
+   */
+  static async getDepartmentConfig(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      if (!req.user?.hospitalId) {
+        res.status(400).json({
+          error: { code: 'BAD_REQUEST', message: 'Hospital context required' },
+        });
+        return;
+      }
+
+      const { departmentId } = req.params as any;
+      const department = await Department.findOne({
+        where: { id: departmentId, hospitalId: req.user.hospitalId },
+      });
+      if (!department) {
+        res.status(404).json({
+          error: { code: 'NOT_FOUND', message: 'Department not found' },
+        });
+        return;
+      }
+
+      const config = await DepartmentConfig.findOne({
+        where: { hospitalId: req.user.hospitalId, departmentId },
+      });
+
+      res.json({ data: config || null });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Update department configuration
+   * PUT /api/v1/setup/departments/:departmentId/config
+   */
+  static async updateDepartmentConfig(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      if (!req.user?.hospitalId) {
+        res.status(400).json({
+          error: { code: 'BAD_REQUEST', message: 'Hospital context required' },
+        });
+        return;
+      }
+
+      const { departmentId } = req.params as any;
+      const department = await Department.findOne({
+        where: { id: departmentId, hospitalId: req.user.hospitalId },
+      });
+      if (!department) {
+        res.status(404).json({
+          error: { code: 'NOT_FOUND', message: 'Department not found' },
+        });
+        return;
+      }
+
+      const [config] = await DepartmentConfig.findOrCreate({
+        where: { hospitalId: req.user.hospitalId, departmentId },
+        defaults: { hospitalId: req.user.hospitalId, departmentId, bookingMode: null },
+      });
+
+      // Allow explicit nulls so callers can "clear override" and fall back to clinic defaults.
+      const body = req.body || {};
+      const patch: any = {};
+      const setIfPresent = (key: string) => {
+        if (Object.prototype.hasOwnProperty.call(body, key)) {
+          patch[key] = body[key];
+        }
+      };
+
+      setIfPresent('bookingMode');
+      setIfPresent('tokenResetFrequency');
+      setIfPresent('maxQueueLength');
+      setIfPresent('tokenPrefix');
+      setIfPresent('defaultConsultationDuration');
+      setIfPresent('bufferTimeBetweenAppointments');
+      setIfPresent('arrivalWindowBeforeAppointment');
+
+      await config.update(patch);
+
+      res.json({ data: config });
     } catch (error) {
       next(error);
     }
@@ -220,25 +306,72 @@ export class HospitalSetupController {
         return;
       }
 
-      // If user doesn't have hospitalId, return empty setup
-      if (!req.user.hospitalId) {
+      // Multi-clinic: allow selecting hospital via X-Hospital-Id header.
+      // If not provided, and the user has exactly one membership, default to that.
+      const headerHospitalId = req.headers['x-hospital-id'] as string | undefined;
+
+      const memberships = await HospitalUser.findAll({
+        where: { userId: req.user.id },
+        include: [{ model: Hospital, as: 'hospital', attributes: ['id', 'name'], required: true }],
+        order: [['createdAt', 'ASC']],
+      });
+
+      const selectedHospitalId =
+        headerHospitalId ||
+        (memberships.length === 1 ? memberships[0].hospitalId : null);
+
+      if (!selectedHospitalId) {
         res.json({
           data: {
             hospital: null,
             config: null,
             departments: [],
             doctors: [],
+            receptionists: [],
+            memberships: memberships.map((m: any) => ({
+              hospitalId: m.hospitalId,
+              hospitalName: m.hospital?.name || 'Hospital',
+              role: m.role,
+              doctorId: m.doctorId || null,
+              departmentId: m.departmentId || null,
+            })),
           },
         });
         return;
       }
 
-      const setup = await HospitalSetupService.getHospitalSetup(
-        req.user.hospitalId
-      );
+      // Verify membership
+      const membership = memberships.find((m) => m.hospitalId === selectedHospitalId);
+      if (!membership && req.user.role !== 'SUPERADMIN') {
+        res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Access denied - you are not a member of this hospital',
+          },
+        });
+        return;
+      }
+
+      // Setup payload is readable by all members (view-only for non owners/managers).
+      // Mutations are still protected by requireRole at the route level.
+      const canManageSetup =
+        req.user.role === 'SUPERADMIN' ||
+        (membership?.role === 'HOSPITAL_OWNER' || membership?.role === 'HOSPITAL_MANAGER');
+
+      const setup = await HospitalSetupService.getHospitalSetup(selectedHospitalId);
 
       res.json({
-        data: setup,
+        data: {
+          ...setup,
+          canManageSetup,
+          memberships: memberships.map((m: any) => ({
+            hospitalId: m.hospitalId,
+            hospitalName: m.hospital?.name || 'Hospital',
+            role: m.role,
+            doctorId: m.doctorId || null,
+            departmentId: m.departmentId || null,
+          })),
+        },
       });
     } catch (error) {
       next(error);
@@ -273,6 +406,43 @@ export class HospitalSetupController {
       res.json({
         data: hospital,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Suggest/validate subdomain for a hospital name
+   * GET /api/v1/setup/subdomain/suggest?name=Regency%20Hospital
+   *
+   * Returns:
+   * - base: slug derived from name (lowercase, no spaces)
+   * - available: whether base is available
+   * - suggestedSubdomain: base if available, else base-xxxx
+   */
+  static async suggestSubdomain(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+        });
+        return;
+      }
+
+      const name = (req.query.name as string | undefined) || '';
+      if (!name.trim()) {
+        res.status(400).json({
+          error: { code: 'BAD_REQUEST', message: 'name query param is required' },
+        });
+        return;
+      }
+
+      const info = await HospitalSetupService.suggestSubdomainFromName(name);
+      res.json({ data: info });
     } catch (error) {
       next(error);
     }

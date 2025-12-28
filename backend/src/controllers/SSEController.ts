@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import realtimeService from '../services/RealtimeService';
 import Doctor from '../models/Doctor';
 import Department from '../models/Department';
+import HospitalUser from '../models/HospitalUser';
 
 export class SSEController {
   /**
@@ -27,24 +28,11 @@ export class SSEController {
       // SUPERADMIN can access any hospital
       // Other users must have hospitalId matching the route parameter
       if (req.user.role !== 'SUPERADMIN') {
-        // Fetch user from database to get actual hospitalId
-        const User = (await import('../models/User')).default;
-        const user = await User.findByPk(req.user.id);
-        
-        if (!user) {
-          res.status(401).json({
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'User not found',
-            },
-          });
-          return;
-        }
+        const membership = await HospitalUser.findOne({
+          where: { userId: req.user.id, hospitalId },
+        });
 
-        // Verify user has access to this hospital
-        // If user's hospitalId is null in DB, they shouldn't have access
-        // But if it matches the route parameter, allow it
-        if (user.hospitalId && user.hospitalId !== hospitalId) {
+        if (!membership) {
           res.status(403).json({
             error: {
               code: 'FORBIDDEN',
@@ -52,16 +40,6 @@ export class SSEController {
             },
           });
           return;
-        }
-
-        // If user's hospitalId is null in DB but route param is provided,
-        // this might be a user created via OAuth without hospitalId
-        // For now, we'll allow it but log a warning
-        if (!user.hospitalId) {
-          // User doesn't have a hospitalId assigned - this shouldn't happen for normal users
-          // But we'll allow it for now and let them access the hospital
-          // In production, you might want to require hospital assignment
-          console.warn(`User ${user.id} accessing hospital ${hospitalId} without assigned hospitalId`);
         }
       }
 

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
+import { requireHospitalContext } from '../middleware/rbac';
 import Doctor from '../models/Doctor';
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth';
@@ -8,6 +9,7 @@ const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
+router.use(requireHospitalContext);
 
 /**
  * Update doctor on-duty status
@@ -40,17 +42,7 @@ router.patch('/:doctorId/on-duty', async (req: AuthRequest, res: Response, next:
       return;
     }
 
-    // Get user's hospitalId
-    let hospitalId = req.user?.hospitalId;
-    if (!hospitalId) {
-      const User = (await import('../models/User')).default;
-      const user = await User.findByPk(req.user!.id);
-      if (user && user.hospitalId) {
-        hospitalId = user.hospitalId;
-      }
-    }
-
-    if (doctor.hospitalId !== hospitalId) {
+    if (doctor.hospitalId !== req.user?.hospitalId) {
       res.status(403).json({
         error: {
           code: 'FORBIDDEN',

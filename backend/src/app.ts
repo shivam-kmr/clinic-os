@@ -13,6 +13,8 @@ import queueRouter from './routes/queue';
 import sseRouter from './routes/sse';
 import setupRouter from './routes/setup';
 import doctorsRouter from './routes/doctors';
+import teamRouter from './routes/team';
+import receptionRouter from './routes/reception';
 import publicRouter from './routes/public';
 import patientRouter from './routes/patient';
 
@@ -56,6 +58,8 @@ app.use('/api/v1/queue', queueRouter);
 app.use('/api/v1/sse', sseRouter);
 app.use('/api/v1/setup', setupRouter);
 app.use('/api/v1/doctors', doctorsRouter);
+app.use('/api/v1/team', teamRouter);
+app.use('/api/v1/reception', receptionRouter);
 app.use('/api/v1/public', publicRouter);
 // Patient routes - extract hospital from domain first
 app.use('/api/v1/patient', patientRouter);

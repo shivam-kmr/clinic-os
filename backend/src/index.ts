@@ -16,10 +16,18 @@ async function startServer() {
     await sequelize.authenticate();
     logger.info('Database connection established');
 
-    // Sync database (in production, use migrations)
-    if (process.env.NODE_ENV !== 'production') {
-      await sequelize.sync({ alter: false }); // Set to true to auto-migrate
-      logger.info('Database synced');
+    // IMPORTANT:
+    // We use Sequelize migrations (sequelize-cli) to manage schema.
+    // Avoid sequelize.sync() at runtime because it can:
+    // - create/drop indexes out of order
+    // - drift schema from migrations
+    // - fail startup when DB is mid-migration
+    //
+    // If you *really* need sync for local experiments, opt-in explicitly:
+    // DB_SYNC=true npm run dev
+    if (process.env.DB_SYNC === 'true') {
+      await sequelize.sync({ alter: false });
+      logger.warn('DB_SYNC=true: sequelize.sync() executed (not recommended for normal dev)');
     }
 
     // Connect to RabbitMQ (optional)

@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import Hospital from '../models/Hospital';
 import Department from '../models/Department';
 import Doctor from '../models/Doctor';
 import { errorHandler } from '../middleware/errorHandler';
@@ -27,7 +26,6 @@ export class PublicController {
       const departments = await Department.findAll({
         where: {
           hospitalId: hospital.id,
-          status: 'ACTIVE',
         },
         attributes: ['id', 'name', 'description'],
         order: [['name', 'ASC']],
@@ -56,6 +54,12 @@ export class PublicController {
           id: hospital.id,
           name: hospital.name,
           address: hospital.address,
+          street: hospital.street,
+          buildingNumber: hospital.buildingNumber,
+          city: hospital.city,
+          state: hospital.state,
+          postalCode: hospital.postalCode,
+          country: hospital.country,
           phone: hospital.phone,
           email: hospital.email,
         },
@@ -67,4 +71,5 @@ export class PublicController {
     }
   }
 }
+
 

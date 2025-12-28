@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { queueApi, doctorsApi } from '@/lib/api';
+import { queueApi, doctorsApi, setupApi } from '@/lib/api';
 import { useSSE } from '@/hooks/useSSE';
 import { format } from 'date-fns';
 import { User, Clock, CheckCircle, XCircle, LogOut } from 'lucide-react';
@@ -26,6 +26,7 @@ export default function DoctorScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [onDuty, setOnDuty] = useState(true);
+  const [doctorName, setDoctorName] = useState<string>('');
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -43,14 +44,33 @@ export default function DoctorScreen() {
     },
   });
 
-  // Fetch initial on-duty status
+  // Fetch doctor metadata (name/status) from setup data when available
+  const { data: setupData } = useQuery({
+    queryKey: ['hospital-setup'],
+    queryFn: async () => {
+      const response = await setupApi.getSetup();
+      return response.data.data as {
+        doctors?: Array<{
+          id: string;
+          status?: string;
+          user?: { firstName?: string; lastName?: string; email?: string };
+        }>;
+      };
+    },
+    retry: false,
+  });
+
   useEffect(() => {
-    if (doctorId) {
-      // Get doctor status from queue data or fetch separately
-      // For now, assume ACTIVE = on duty
-      setOnDuty(true);
-    }
-  }, [doctorId]);
+    if (!doctorId) return;
+    const doctor = setupData?.doctors?.find((d) => d.id === doctorId);
+    if (!doctor) return;
+    const name =
+      `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim() ||
+      doctor.user?.email ||
+      '';
+    if (name) setDoctorName(name);
+    if (doctor.status) setOnDuty(doctor.status === 'ACTIVE');
+  }, [doctorId, setupData]);
 
   // SSE for real-time updates
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
@@ -129,7 +149,9 @@ export default function DoctorScreen() {
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Doctor Dashboard</h1>
-            <p className="text-gray-600 mt-1">Manage your patient queue</p>
+            <p className="text-gray-600 mt-1">
+              Manage your patient queue{doctorName ? ` • ${doctorName}` : ''}
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <Switch

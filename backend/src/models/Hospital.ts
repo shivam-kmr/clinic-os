@@ -5,6 +5,12 @@ export interface HospitalAttributes {
   id: string;
   name: string;
   address?: string;
+  street?: string;
+  buildingNumber?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
   phone?: string;
   email?: string;
   subdomain?: string; // e.g., "regencyhospital" for regencyhospital.clinicos.com
@@ -25,6 +31,12 @@ class Hospital
   public id!: string;
   public name!: string;
   public address?: string;
+  public street?: string;
+  public buildingNumber?: string;
+  public city?: string;
+  public state?: string;
+  public postalCode?: string;
+  public country?: string;
   public phone?: string;
   public email?: string;
   public subdomain?: string;
@@ -48,6 +60,30 @@ Hospital.init(
     },
     address: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    street: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    buildingNumber: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    city: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    state: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    postalCode: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    country: {
+      type: DataTypes.STRING,
       allowNull: true,
     },
     phone: {

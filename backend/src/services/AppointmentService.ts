@@ -1,4 +1,4 @@
-import { Op, Transaction } from 'sequelize';
+import { Op } from 'sequelize';
 import '../models'; // Import to initialize associations
 import Appointment from '../models/Appointment';
 import Visit from '../models/Visit';
@@ -6,12 +6,12 @@ import Patient from '../models/Patient';
 import Doctor from '../models/Doctor';
 import Department from '../models/Department';
 import HospitalConfig from '../models/HospitalConfig';
+import { ConfigResolverService } from './ConfigResolverService';
 import { logger } from '../config/logger';
 import { DoctorAssignmentService } from './DoctorAssignmentService';
 import { getNextTokenNumber } from '../utils/tokenNumber';
 import { publishEvent } from '../config/rabbitmq';
-import sequelize from '../config/database';
-import { addMinutes, isBefore, isAfter } from 'date-fns';
+import { addMinutes, isBefore } from 'date-fns';
 
 export interface CreateAppointmentDto {
   hospitalId: string;
@@ -120,11 +120,17 @@ export class AppointmentService {
     }
 
     // Get hospital config
-    const config = await HospitalConfig.findOne({
-      where: { hospitalId },
-    });
+    const effectiveDepartmentId = appointment.departmentId || null;
+    const cfg = effectiveDepartmentId
+      ? await ConfigResolverService.getEffectiveDepartmentConfig(hospitalId, effectiveDepartmentId)
+      : {
+          arrivalWindowBeforeAppointment:
+            (await HospitalConfig.findOne({ where: { hospitalId } }))?.arrivalWindowBeforeAppointment || 15,
+          tokenResetFrequency:
+            (await HospitalConfig.findOne({ where: { hospitalId } }))?.tokenResetFrequency || 'DAILY',
+        };
 
-    const arrivalWindow = config?.arrivalWindowBeforeAppointment || 15;
+    const arrivalWindow = (cfg as any).arrivalWindowBeforeAppointment || 15;
     const arrivalStart = addMinutes(appointment.scheduledAt, -arrivalWindow);
     const now = new Date();
 
@@ -153,7 +159,7 @@ export class AppointmentService {
     }
 
     // Get token number
-    const tokenResetFrequency = config?.tokenResetFrequency || 'DAILY';
+    const tokenResetFrequency = (cfg as any).tokenResetFrequency || 'DAILY';
     const tokenNumber = await getNextTokenNumber(
       hospitalId,
       doctorId,

@@ -1,9 +1,9 @@
 import { OAuth2Client } from 'google-auth-library';
 import jwt, { type SignOptions } from 'jsonwebtoken';
+import '../models'; // ensure associations are initialized
 import User from '../models/User';
-import Doctor from '../models/Doctor';
 import { logger } from '../config/logger';
-import { AuthResponse } from './AuthService';
+import { AuthResponse, AuthService } from './AuthService';
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -95,23 +95,14 @@ export class GoogleAuthService {
           passwordHash: '', // Google users don't need password
           firstName,
           lastName,
-          role: 'RECEPTIONIST', // Default role - should be configurable
-          hospitalId: null, // Should be set during registration flow
+          role: 'HOSPITAL_OWNER', // Default base role for new signups
+          hospitalId: null,
         });
 
         logger.info(`New Google user created: ${user.email}`);
       }
 
-      // Get doctor ID if user is a doctor
-      let doctorId: string | undefined;
-      if (user.role === 'DOCTOR') {
-        const doctor = await Doctor.findOne({
-          where: { userId: user.id },
-        });
-        if (doctor) {
-          doctorId = doctor.id;
-        }
-      }
+      const memberships = await AuthService.getMemberships(user.id);
 
       // Generate JWT token
       const jwtSecret = process.env.JWT_SECRET;
@@ -119,12 +110,11 @@ export class GoogleAuthService {
         throw new Error('JWT_SECRET not configured');
       }
 
-      const expiresIn: string = process.env.JWT_EXPIRES_IN || '7d';
+      const expiresIn: any = process.env.JWT_EXPIRES_IN || '7d';
       const token = jwt.sign(
         {
           userId: user.id,
-          hospitalId: user.hospitalId,
-          role: user.role,
+          baseRole: user.role,
         },
         jwtSecret,
         {
@@ -140,8 +130,7 @@ export class GoogleAuthService {
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
-          hospitalId: user.hospitalId,
-          doctorId,
+          memberships,
         },
       };
     } catch (error) {
@@ -167,16 +156,7 @@ export class GoogleAuthService {
         throw new Error('User not found. Please register first or use email/password login.');
       }
 
-      // Get doctor ID if user is a doctor
-      let doctorId: string | undefined;
-      if (user.role === 'DOCTOR') {
-        const doctor = await Doctor.findOne({
-          where: { userId: user.id },
-        });
-        if (doctor) {
-          doctorId = doctor.id;
-        }
-      }
+      const memberships = await AuthService.getMemberships(user.id);
 
       // Generate JWT token
       const jwtSecret = process.env.JWT_SECRET;
@@ -184,12 +164,11 @@ export class GoogleAuthService {
         throw new Error('JWT_SECRET not configured');
       }
 
-      const expiresIn: string = process.env.JWT_EXPIRES_IN || '7d';
+      const expiresIn: any = process.env.JWT_EXPIRES_IN || '7d';
       const token = jwt.sign(
         {
           userId: user.id,
-          hospitalId: user.hospitalId,
-          role: user.role,
+          baseRole: user.role,
         },
         jwtSecret,
         {
@@ -207,8 +186,7 @@ export class GoogleAuthService {
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
-          hospitalId: user.hospitalId,
-          doctorId,
+          memberships,
         },
       };
     } catch (error) {
@@ -241,23 +219,14 @@ export class GoogleAuthService {
           passwordHash: '', // Google users don't need password
           firstName,
           lastName,
-          role: 'RECEPTIONIST', // Default role - should be configurable
-          hospitalId: null, // Should be set during registration flow
+          role: 'HOSPITAL_OWNER', // Default base role for new signups
+          hospitalId: null,
         });
 
         logger.info(`New Google user created: ${user.email}`);
       }
 
-      // Get doctor ID if user is a doctor
-      let doctorId: string | undefined;
-      if (user.role === 'DOCTOR') {
-        const doctor = await Doctor.findOne({
-          where: { userId: user.id },
-        });
-        if (doctor) {
-          doctorId = doctor.id;
-        }
-      }
+      const memberships = await AuthService.getMemberships(user.id);
 
       // Generate JWT token
       const jwtSecret = process.env.JWT_SECRET;
@@ -265,12 +234,11 @@ export class GoogleAuthService {
         throw new Error('JWT_SECRET not configured');
       }
 
-      const expiresIn: string = process.env.JWT_EXPIRES_IN || '7d';
+      const expiresIn: any = process.env.JWT_EXPIRES_IN || '7d';
       const token = jwt.sign(
         {
           userId: user.id,
-          hospitalId: user.hospitalId,
-          role: user.role,
+          baseRole: user.role,
         },
         jwtSecret,
         {
@@ -288,8 +256,7 @@ export class GoogleAuthService {
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
-          hospitalId: user.hospitalId,
-          doctorId,
+          memberships,
         },
       };
     } catch (error) {

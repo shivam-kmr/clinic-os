@@ -170,6 +170,7 @@ export class PatientAuthService {
         firstName: patientUser.firstName,
         lastName: patientUser.lastName,
         phone: patientUser.phone,
+        gender: 'UNKNOWN',
       });
     }
 

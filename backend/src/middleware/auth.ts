@@ -38,8 +38,9 @@ export const authenticate = async (
 
     const decoded = jwt.verify(token, jwtSecret) as {
       userId: string;
-      hospitalId?: string;
-      role: string;
+      hospitalId?: string; // legacy
+      role?: string; // legacy
+      baseRole?: string;
     };
 
     // Fetch user from database
@@ -57,6 +58,7 @@ export const authenticate = async (
 
     req.user = {
       id: user.id,
+      // NOTE: hospitalId/role here are legacy fields; per-clinic context is applied later via requireHospitalContext
       hospitalId: user.hospitalId,
       role: user.role,
       email: user.email,
@@ -85,7 +87,7 @@ export const authenticate = async (
 
 export const optionalAuth = async (
   req: AuthRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {

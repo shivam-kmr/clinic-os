@@ -13,6 +13,9 @@ router.post('/register', AuthController.register);
 // Get current user (requires authentication)
 router.get('/me', authenticate, AuthController.getCurrentUser);
 
+// List clinics for current user
+router.get('/clinics', authenticate, AuthController.getClinics);
+
 // Google OAuth
 router.get('/google/url', AuthController.getGoogleAuthUrl);
 router.get('/google/callback', AuthController.googleCallback);

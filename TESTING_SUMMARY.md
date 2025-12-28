@@ -131,3 +131,5 @@ There are still some TypeScript errors related to JWT signing in `GoogleAuthServ
 - `frontend/src/pages/Landing.tsx` - NEW
 - `frontend/src/pages/HospitalSetup.tsx` - UPDATED (subdomain, managers)
 
+
+

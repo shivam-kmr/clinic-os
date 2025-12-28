@@ -3,6 +3,7 @@ import Patient from '../models/Patient';
 import Doctor from '../models/Doctor';
 import Department from '../models/Department';
 import HospitalConfig from '../models/HospitalConfig';
+import { ConfigResolverService } from './ConfigResolverService';
 import { logger } from '../config/logger';
 import { DoctorAssignmentService } from './DoctorAssignmentService';
 import { getNextTokenNumber } from '../utils/tokenNumber';
@@ -33,13 +34,16 @@ export class VisitService {
       throw new Error('Either departmentId or doctorId must be provided');
     }
 
-    // Get hospital config
-    const config = await HospitalConfig.findOne({
-      where: { hospitalId },
-    });
+    // Resolve config: department overrides hospital defaults
+    const resolvedDeptId = departmentId || null;
+    const config = resolvedDeptId
+      ? await ConfigResolverService.getEffectiveDepartmentConfig(hospitalId, resolvedDeptId)
+      : null;
+    const hospitalConfig = await HospitalConfig.findOne({ where: { hospitalId } });
 
     // Check queue length limit (soft limit - warn but allow)
-    if (config?.maxQueueLength) {
+    const maxQueueLength = (config as any)?.maxQueueLength ?? hospitalConfig?.maxQueueLength;
+    if (maxQueueLength) {
       const currentQueueLength = doctorId
         ? await Visit.count({
             where: {
@@ -60,7 +64,7 @@ export class VisitService {
             },
           });
 
-      if (currentQueueLength >= config.maxQueueLength) {
+      if (currentQueueLength >= maxQueueLength) {
         logger.warn(
           `Queue length limit reached for ${doctorId || departmentId}, but allowing new visit`
         );
@@ -122,7 +126,8 @@ export class VisitService {
     }
 
     // Get token number
-    const tokenResetFrequency = config?.tokenResetFrequency || 'DAILY';
+    const tokenResetFrequency =
+      (config as any)?.tokenResetFrequency || hospitalConfig?.tokenResetFrequency || 'DAILY';
     const tokenNumber = await getNextTokenNumber(
       hospitalId,
       assignedDoctorId,
@@ -145,7 +150,10 @@ export class VisitService {
 
     // Calculate estimated wait time
     const consultationDuration =
-      doctor.consultationDuration || config?.defaultConsultationDuration || 15;
+      doctor.consultationDuration ||
+      (config as any)?.defaultConsultationDuration ||
+      hospitalConfig?.defaultConsultationDuration ||
+      15;
     
     const queueAhead = await Visit.findAll({
       where: {

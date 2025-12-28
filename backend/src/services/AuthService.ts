@@ -1,8 +1,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import '../models'; // ensure associations are initialized for includes
 import User from '../models/User';
-import Doctor from '../models/Doctor';
 import { logger } from '../config/logger';
+import HospitalUser from '../models/HospitalUser';
+import Hospital from '../models/Hospital';
 
 export interface LoginCredentials {
   email: string;
@@ -14,7 +16,7 @@ export interface RegisterData {
   password: string;
   firstName: string;
   lastName: string;
-  role: 'HOSPITAL_OWNER' | 'RECEPTIONIST' | 'DOCTOR';
+  role: 'SUPERADMIN' | 'HOSPITAL_OWNER' | 'HOSPITAL_MANAGER' | 'RECEPTIONIST' | 'DOCTOR';
   hospitalId?: string;
 }
 
@@ -25,9 +27,13 @@ export interface AuthResponse {
     email: string;
     firstName: string;
     lastName: string;
-    role: string;
-    hospitalId: string | null;
-    doctorId?: string;
+    role: string; // base role on user record (SUPERADMIN is meaningful; others are legacy)
+    memberships: Array<{
+      hospitalId: string;
+      hospitalName: string;
+      role: string;
+      doctorId?: string | null;
+    }>;
   };
 }
 
@@ -35,6 +41,28 @@ export interface AuthResponse {
  * Service for authentication operations
  */
 export class AuthService {
+  static async getMemberships(userId: string) {
+    const memberships = await HospitalUser.findAll({
+      where: { userId },
+      include: [
+        {
+          model: Hospital,
+          as: 'hospital',
+          attributes: ['id', 'name'],
+          required: true,
+        },
+      ],
+      order: [['createdAt', 'ASC']],
+    });
+
+    return memberships.map((m: any) => ({
+      hospitalId: m.hospitalId,
+      hospitalName: m.hospital?.name || 'Hospital',
+      role: m.role,
+      doctorId: m.doctorId || null,
+    }));
+  }
+
   /**
    * Login with email and password
    */
@@ -56,16 +84,7 @@ export class AuthService {
       throw new Error('Invalid email or password');
     }
 
-    // Get doctor ID if user is a doctor
-    let doctorId: string | undefined;
-    if (user.role === 'DOCTOR') {
-      const doctor = await Doctor.findOne({
-        where: { userId: user.id },
-      });
-      if (doctor) {
-        doctorId = doctor.id;
-      }
-    }
+    const memberships = await AuthService.getMemberships(user.id);
 
     // Generate JWT token
     const jwtSecret = process.env.JWT_SECRET;
@@ -73,15 +92,15 @@ export class AuthService {
       throw new Error('JWT_SECRET not configured');
     }
 
+    const expiresIn = (process.env.JWT_EXPIRES_IN || '7d') as any;
     const token = jwt.sign(
       {
         userId: user.id,
-        hospitalId: user.hospitalId,
-        role: user.role,
+        baseRole: user.role,
       },
       jwtSecret,
       {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+        expiresIn,
       }
     );
 
@@ -95,8 +114,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        hospitalId: user.hospitalId,
-        doctorId,
+        memberships,
       },
     };
   }
@@ -116,7 +134,7 @@ export class AuthService {
       throw new Error('User with this email already exists');
     }
 
-    // Validate hospitalId for non-superadmin users
+    // Legacy: keep hospitalId requirement for the old register API
     if (role !== 'SUPERADMIN' && !hospitalId) {
       throw new Error('hospitalId is required for this role');
     }
@@ -134,21 +152,33 @@ export class AuthService {
       hospitalId: hospitalId || null,
     });
 
+    // Backfill a membership row for this legacy registration path
+    if (hospitalId && role !== 'SUPERADMIN') {
+      await HospitalUser.create({
+        userId: user.id,
+        hospitalId,
+        role,
+        doctorId: null,
+      });
+    }
+
+    const memberships = await AuthService.getMemberships(user.id);
+
     // Generate JWT token
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
       throw new Error('JWT_SECRET not configured');
     }
 
+    const expiresIn = (process.env.JWT_EXPIRES_IN || '7d') as any;
     const token = jwt.sign(
       {
         userId: user.id,
-        hospitalId: user.hospitalId,
-        role: user.role,
+        baseRole: user.role,
       },
       jwtSecret,
       {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+        expiresIn,
       }
     );
 
@@ -162,7 +192,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        hospitalId: user.hospitalId,
+        memberships,
       },
     };
   }
@@ -177,16 +207,7 @@ export class AuthService {
       throw new Error('User not found');
     }
 
-    // Get doctor ID if user is a doctor
-    let doctorId: string | undefined;
-    if (user.role === 'DOCTOR') {
-      const doctor = await Doctor.findOne({
-        where: { userId: user.id },
-      });
-      if (doctor) {
-        doctorId = doctor.id;
-      }
-    }
+    const memberships = await AuthService.getMemberships(user.id);
 
     return {
       id: user.id,
@@ -194,8 +215,7 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
-      hospitalId: user.hospitalId,
-      doctorId,
+      memberships,
     };
   }
 }

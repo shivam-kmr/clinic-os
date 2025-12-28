@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 export default {
   async up(queryInterface: QueryInterface): Promise<void> {
     // Create a hospital
-    const [hospitals] = await queryInterface.bulkInsert(
+    await queryInterface.bulkInsert(
       'hospitals',
       [
         {
@@ -18,7 +18,6 @@ export default {
           updatedAt: new Date(),
         },
       ],
-      { returning: true }
     );
 
     const hospitalId = '00000000-0000-0000-0000-000000000001';
@@ -50,7 +49,7 @@ export default {
     ]);
 
     // Create departments
-    const [departments] = await queryInterface.bulkInsert(
+    await queryInterface.bulkInsert(
       'departments',
       [
         {
@@ -70,7 +69,6 @@ export default {
           updatedAt: new Date(),
         },
       ],
-      { returning: true }
     );
 
     const passwordHash = await bcrypt.hash('password123', 10);
@@ -122,6 +120,9 @@ export default {
         updatedAt: new Date(),
       },
     ]);
+
+    // NOTE: With multi-clinic support, staff access is controlled via hospital_users.
+    // The migration backfill will create membership rows for these users based on users.hospitalId.
 
     // Create doctors
     await queryInterface.bulkInsert('doctors', [

@@ -18,14 +18,16 @@ export async function connectRabbitMQ(): Promise<Channel | null> {
     const conn = await amqp.connect(RABBITMQ_URL);
     connection = conn as unknown as Connection;
     channel = await (connection as any).createChannel();
+    const ch = channel;
+    if (!ch) return null;
     
     // Declare exchange
-    await channel.assertExchange(EXCHANGE, 'topic', {
+    await ch.assertExchange(EXCHANGE, 'topic', {
       durable: true,
     });
 
     console.log('RabbitMQ Connected');
-    return channel;
+    return ch;
   } catch (error) {
     console.error('RabbitMQ Connection Error:', error);
     console.warn('Continuing without RabbitMQ - event publishing will be disabled');

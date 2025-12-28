@@ -12,6 +12,7 @@ import { sortQueueByPriority, calculateEstimatedWaitTime } from '../utils/queueO
 import { getQueueLockKey, withLock } from '../utils/redisLock';
 import { publishEvent } from '../config/rabbitmq';
 import { differenceInMinutes } from 'date-fns';
+import { ConfigResolverService } from './ConfigResolverService';
 
 export interface QueueItem {
   id: string;
@@ -48,12 +49,17 @@ export class QueueService {
       throw new Error('Doctor not found');
     }
 
-    const config = await HospitalConfig.findOne({
-      where: { hospitalId },
-    });
+    const hospitalConfig = await HospitalConfig.findOne({ where: { hospitalId } });
+    const deptCfg = await ConfigResolverService.getEffectiveDepartmentConfig(
+      hospitalId,
+      doctor.departmentId
+    );
 
     const consultationDuration =
-      doctor.consultationDuration || config?.defaultConsultationDuration || 15;
+      doctor.consultationDuration ||
+      deptCfg.defaultConsultationDuration ||
+      hospitalConfig?.defaultConsultationDuration ||
+      15;
 
     const visits = await Visit.findAll({
       where: {
@@ -111,11 +117,14 @@ export class QueueService {
     hospitalId: string,
     departmentId: string
   ): Promise<QueueResponse> {
-    const config = await HospitalConfig.findOne({
-      where: { hospitalId },
-    });
+    const hospitalConfig = await HospitalConfig.findOne({ where: { hospitalId } });
+    const deptCfg = await ConfigResolverService.getEffectiveDepartmentConfig(
+      hospitalId,
+      departmentId
+    );
 
-    const defaultConsultationDuration = config?.defaultConsultationDuration || 15;
+    const defaultConsultationDuration =
+      deptCfg.defaultConsultationDuration || hospitalConfig?.defaultConsultationDuration || 15;
 
     const visits = await Visit.findAll({
       where: {
@@ -381,7 +390,8 @@ export class QueueService {
     const config = await HospitalConfig.findOne({
       where: { hospitalId },
     });
-    const tokenResetFrequency = config?.tokenResetFrequency || 'DAILY';
+    const deptCfg = await ConfigResolverService.getEffectiveDepartmentConfig(hospitalId, visit.departmentId);
+    const tokenResetFrequency = deptCfg.tokenResetFrequency || config?.tokenResetFrequency || 'DAILY';
     visit.tokenNumber = await getNextTokenNumber(
       hospitalId,
       newDoctorId,

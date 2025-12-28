@@ -33,3 +33,5 @@ router.get('/history', PatientController.getHistory);
 
 export default router;
 
+
+

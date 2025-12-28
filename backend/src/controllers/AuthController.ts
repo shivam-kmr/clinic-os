@@ -114,6 +114,29 @@ export class AuthController {
   }
 
   /**
+   * List clinics (memberships) for the current user
+   * GET /api/v1/auth/clinics
+   */
+  static async getClinics(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required',
+          },
+        });
+        return;
+      }
+
+      const memberships = await AuthService.getMemberships(req.user.id);
+      res.json({ data: memberships });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Get Google OAuth URL
    * GET /api/v1/auth/google/url
    */

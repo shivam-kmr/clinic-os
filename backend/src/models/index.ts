@@ -7,13 +7,21 @@ import Patient from './Patient';
 import PatientUser from './PatientUser';
 import PatientHospital from './PatientHospital';
 import HospitalConfig from './HospitalConfig';
+import DepartmentConfig from './DepartmentConfig';
 import Appointment from './Appointment';
 import Visit from './Visit';
 import VisitHistory from './VisitHistory';
+import HospitalUser from './HospitalUser';
 
 // Define associations
 Hospital.hasMany(User, { foreignKey: 'hospitalId', as: 'users' });
 User.belongsTo(Hospital, { foreignKey: 'hospitalId', as: 'hospital' });
+
+// Multi-clinic membership associations
+Hospital.hasMany(HospitalUser, { foreignKey: 'hospitalId', as: 'memberships' });
+HospitalUser.belongsTo(Hospital, { foreignKey: 'hospitalId', as: 'hospital' });
+User.hasMany(HospitalUser, { foreignKey: 'userId', as: 'memberships' });
+HospitalUser.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 Hospital.hasMany(Department, { foreignKey: 'hospitalId', as: 'departments' });
 Department.belongsTo(Hospital, { foreignKey: 'hospitalId', as: 'hospital' });
@@ -27,11 +35,19 @@ Patient.belongsTo(Hospital, { foreignKey: 'hospitalId', as: 'hospital' });
 Hospital.hasOne(HospitalConfig, { foreignKey: 'hospitalId', as: 'config' });
 HospitalConfig.belongsTo(Hospital, { foreignKey: 'hospitalId', as: 'hospital' });
 
+// Department-level configuration
+Department.hasOne(DepartmentConfig, { foreignKey: 'departmentId', as: 'config' });
+DepartmentConfig.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+Hospital.hasMany(DepartmentConfig, { foreignKey: 'hospitalId', as: 'departmentConfigs' });
+DepartmentConfig.belongsTo(Hospital, { foreignKey: 'hospitalId', as: 'hospital' });
+
 Department.hasMany(Doctor, { foreignKey: 'departmentId', as: 'doctors' });
 Doctor.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 
-User.hasOne(Doctor, { foreignKey: 'userId', as: 'doctor' });
+User.hasMany(Doctor, { foreignKey: 'userId', as: 'doctors' });
 Doctor.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+HospitalUser.belongsTo(Doctor, { foreignKey: 'doctorId', as: 'doctor' });
 
 Patient.hasMany(Appointment, { foreignKey: 'patientId', as: 'appointments' });
 Appointment.belongsTo(Patient, { foreignKey: 'patientId', as: 'patient' });
@@ -88,10 +104,12 @@ export {
   User,
   Department,
   Doctor,
+  HospitalUser,
   Patient,
   PatientUser,
   PatientHospital,
   HospitalConfig,
+  DepartmentConfig,
   Appointment,
   Visit,
   VisitHistory,

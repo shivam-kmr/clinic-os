@@ -21,6 +21,7 @@ import {
   Smartphone,
   Headphones,
 } from 'lucide-react';
+import AppFooter from '@/components/AppFooter';
 
 // Testimonials from hospital owners/managers
 const testimonials = [
@@ -543,6 +544,9 @@ export default function Landing() {
                   SOC 2 Type II
                 </span>
               </div>
+            </div>
+            <div className="mt-6">
+              <AppFooter />
             </div>
           </div>
         </div>

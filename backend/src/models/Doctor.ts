@@ -101,8 +101,9 @@ Doctor.init(
         fields: ['hospitalId'],
       },
       {
-        fields: ['userId'],
+        fields: ['userId', 'hospitalId'],
         unique: true,
+        name: 'doctors_userId_hospitalId_unique',
       },
       {
         fields: ['departmentId'],

@@ -8,6 +8,7 @@ export interface PatientAttributes {
   email?: string;
   firstName: string;
   lastName: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNKNOWN';
   dateOfBirth?: Date;
   address?: string;
   emergencyContact?: string;
@@ -31,6 +32,7 @@ class Patient
   public email?: string;
   public firstName!: string;
   public lastName!: string;
+  public gender!: 'MALE' | 'FEMALE' | 'OTHER' | 'UNKNOWN';
   public dateOfBirth?: Date;
   public address?: string;
   public emergencyContact?: string;
@@ -71,6 +73,11 @@ Patient.init(
     lastName: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    gender: {
+      type: DataTypes.ENUM('MALE', 'FEMALE', 'OTHER', 'UNKNOWN'),
+      allowNull: false,
+      defaultValue: 'UNKNOWN',
     },
     dateOfBirth: {
       type: DataTypes.DATE,

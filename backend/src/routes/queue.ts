@@ -7,8 +7,8 @@ const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
-// Note: requireHospitalContext is not applied here because controllers
-// can derive hospitalId from doctor/department if user's hospitalId is null
+// Apply per-clinic context + per-clinic role before RBAC checks
+router.use(requireHospitalContext);
 
 // Get queue for doctor
 router.get('/doctor/:doctorId', requireRole('RECEPTIONIST', 'DOCTOR', 'HOSPITAL_OWNER'), QueueController.getDoctorQueue);

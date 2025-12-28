@@ -1,5 +1,11 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { setActiveHospitalId, type Membership } from '@/lib/clinic';
+
+function selectDefaultHospital(memberships: Membership[]) {
+  if (memberships.length === 1) return memberships[0].hospitalId;
+  return null;
+}
 
 export default function AuthCallback() {
   const [searchParams] = useSearchParams();
@@ -24,22 +30,10 @@ export default function AuthCallback() {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
 
-        // Navigate based on role and hospital setup status
-        if (!user.hospitalId) {
-          navigate('/setup');
-        } else if (user.role === 'HOSPITAL_OWNER') {
-          navigate('/setup');
-        } else if (user.role === 'RECEPTIONIST') {
-          navigate('/reception');
-        } else if (user.role === 'DOCTOR') {
-          if (user.doctorId) {
-            navigate(`/doctor/${user.doctorId}`);
-          } else {
-            navigate('/setup');
-          }
-        } else {
-          navigate('/reception');
-        }
+        const memberships: Membership[] = user.memberships || [];
+        setActiveHospitalId(selectDefaultHospital(memberships));
+
+        navigate('/dashboard');
       } catch (err) {
         console.error('Error parsing user data:', err);
         navigate('/login?error=Invalid authentication data');
