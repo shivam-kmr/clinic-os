@@ -22,7 +22,28 @@ const app: Express = express();
 
 // Security middleware
 app.use(helmet());
-app.use(cors());
+const corsOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser / same-origin requests (e.g., curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      // Backwards-compatible default: if not configured, allow all origins.
+      if (corsOrigins.length === 0) return callback(null, true);
+
+      if (corsOrigins.includes(origin)) return callback(null, true);
+
+      logger.warn('CORS blocked origin', { origin });
+      return callback(null, false);
+    },
+    credentials: true,
+  }),
+);
 
 // Rate limiting
 const limiter = rateLimit({
