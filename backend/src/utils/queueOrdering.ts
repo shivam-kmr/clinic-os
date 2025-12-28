@@ -66,31 +66,53 @@ export function calculateQueuePriority(visit: VisitAttributes, today: Date): num
  */
 export function sortQueueByPriority(visits: VisitAttributes[]): VisitAttributes[] {
   const today = new Date();
-  
-  return visits
-    .map((visit) => ({
-      priority: calculateQueuePriority(visit, today),
-      visit,
-    }))
-    .sort((a, b) => {
-      // Higher priority first
-      const p = b.priority - a.priority;
-      if (p !== 0) return p;
 
-      // Deterministic tie-breakers to avoid "random" ordering across runs:
-      const aChecked = new Date(a.visit.checkedInAt).getTime();
-      const bChecked = new Date(b.visit.checkedInAt).getTime();
-      if (aChecked !== bChecked) return aChecked - bChecked; // earlier first
+  const priorityRank = (v: VisitAttributes) => (v.priority === 'VIP' ? 2 : v.priority === 'URGENT' ? 1 : 0);
+  const carryoverRank = (v: VisitAttributes) => {
+    const checkedInDate = new Date(v.checkedInAt);
+    const isToday =
+      checkedInDate.getDate() === today.getDate() &&
+      checkedInDate.getMonth() === today.getMonth() &&
+      checkedInDate.getFullYear() === today.getFullYear();
+    return v.isCarryover || !isToday ? 1 : 0;
+  };
+  const statusRank = (v: VisitAttributes) =>
+    v.status === 'IN_PROGRESS'
+      ? 4
+      : v.status === 'CHECKED_IN'
+      ? 3
+      : v.status === 'WAITING'
+      ? 2
+      : v.status === 'CARRYOVER'
+      ? 2
+      : v.status === 'ON_HOLD'
+      ? 1
+      : 0;
 
-      const aToken = Number((a.visit as any).tokenNumber || 0);
-      const bToken = Number((b.visit as any).tokenNumber || 0);
-      if (aToken !== bToken) return aToken - bToken; // lower token first
+  return [...visits].sort((a, b) => {
+    // Higher ranks first
+    const pr = priorityRank(b) - priorityRank(a);
+    if (pr !== 0) return pr;
 
-      const aId = String((a.visit as any).id || '');
-      const bId = String((b.visit as any).id || '');
-      return aId.localeCompare(bId);
-    })
-    .map((item) => item.visit);
+    const cr = carryoverRank(b) - carryoverRank(a);
+    if (cr !== 0) return cr;
+
+    const sr = statusRank(b) - statusRank(a);
+    if (sr !== 0) return sr;
+
+    // Earlier check-in first
+    const aChecked = new Date(a.checkedInAt).getTime();
+    const bChecked = new Date(b.checkedInAt).getTime();
+    if (aChecked !== bChecked) return aChecked - bChecked;
+
+    // Lower token first (numeric)
+    const aToken = Number((a as any).tokenNumber || 0);
+    const bToken = Number((b as any).tokenNumber || 0);
+    if (aToken !== bToken) return aToken - bToken;
+
+    // Deterministic final tie-breaker
+    return String((a as any).id || '').localeCompare(String((b as any).id || ''));
+  });
 }
 
 /**

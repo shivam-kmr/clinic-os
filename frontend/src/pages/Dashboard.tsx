@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { api, setupApi } from '@/lib/api';
+import { api, receptionApi, setupApi } from '@/lib/api';
 import {
   getActiveHospitalId,
   getActiveMembership,
@@ -26,6 +26,13 @@ import {
 } from 'lucide-react';
 import noClinicsIllustration from '@/assets/undraw/no_clinics.svg';
 import selectClinicIllustration from '@/assets/undraw/select_clinic.svg';
+
+function getGreeting(now = new Date()) {
+  const h = now.getHours();
+  if (h < 12) return 'Good Morning';
+  if (h < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -80,6 +87,20 @@ export default function Dashboard() {
       isComplete: hasHospital && hasConfig && hasDepartments && hasDoctors && hasReceptionists,
     };
   }, [setupData]);
+
+  const { data: todayMetrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ['reception-metrics-today', activeHospitalId],
+    queryFn: async () => {
+      const resp = await receptionApi.metricsToday();
+      return resp.data.data as {
+        todaysVisits: number;
+        averageWaitMinutes: number;
+        activeDoctors: number;
+      };
+    },
+    enabled: !!activeHospitalId,
+    retry: false,
+  });
 
   return (
     <div className="space-y-6">
@@ -355,9 +376,12 @@ export default function Dashboard() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <div className="text-sm text-gray-500">Active clinic</div>
-                <div className="text-2xl font-bold">{activeMembership.hospitalName}</div>
-                <div className="text-sm text-gray-600">
-                  You are signed in as <span className="font-medium">{activeMembership.role}</span>
+                <div className="text-2xl font-bold">
+                  {getGreeting()} {user?.firstName || ''}{user?.lastName ? ` ${user.lastName}` : ''},
+                </div>
+                <div className="text-sm text-gray-600 mt-1">
+                  <span className="font-semibold">{activeMembership.hospitalName}</span> |{' '}
+                  <span className="font-semibold">{String(activeMembership.role).toUpperCase()}</span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -395,28 +419,35 @@ export default function Dashboard() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Today’s visits</CardTitle>
-                  <CardDescription>Coming soon</CardDescription>
+                  <CardDescription>So far today</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">—</div>
+                  <div className="text-3xl font-bold">
+                    {metricsLoading ? '—' : (todayMetrics?.todaysVisits ?? 0)}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Average wait</CardTitle>
-                  <CardDescription>Coming soon</CardDescription>
+                  <CardDescription>Based on completed visits today</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">—</div>
+                  <div className="text-3xl font-bold">
+                    {metricsLoading ? '—' : (todayMetrics?.averageWaitMinutes ?? 0)}
+                    <span className="text-sm font-normal ml-1">min</span>
+                  </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Active doctors</CardTitle>
-                  <CardDescription>Coming soon</CardDescription>
+                  <CardDescription>Marked as ACTIVE</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">—</div>
+                  <div className="text-3xl font-bold">
+                    {metricsLoading ? '—' : (todayMetrics?.activeDoctors ?? 0)}
+                  </div>
                 </CardContent>
               </Card>
             </div>

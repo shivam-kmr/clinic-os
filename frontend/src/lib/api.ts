@@ -69,6 +69,9 @@ export const queueApi = {
 
 export const receptionApi = {
   intake: (data: any) => api.post('/reception/intake', data),
+  patientsByPhone: (phone: string) => api.get('/reception/patients/by-phone', { params: { phone } }),
+  metricsToday: () => api.get('/reception/metrics/today'),
+  metricsLive: () => api.get('/reception/metrics/live'),
 };
 
 export const setupApi = {

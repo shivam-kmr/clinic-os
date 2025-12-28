@@ -107,7 +107,7 @@ export default function AppShell() {
             onClick={() => navigate('/dashboard')}
           >
             <LayoutDashboard className="h-5 w-5 text-primary" />
-            <div className="font-semibold">Clinic OS Console</div>
+            <div className="font-semibold leading-tight">Clinic OS Console</div>
           </button>
 
           <div className="flex items-center gap-2">
