@@ -75,6 +75,7 @@ export class ReceptionController {
 
       const {
         patientId,
+        forceNewPatient,
         phone,
         firstName,
         lastName,
@@ -102,6 +103,7 @@ export class ReceptionController {
       const result = await ReceptionIntakeService.intakeWalkIn({
         hospitalId: req.user.hospitalId,
         patientId: patientId ? String(patientId) : null,
+        forceNewPatient: Boolean(forceNewPatient),
         patient: {
           phone: String(phone),
           firstName: String(firstName),
@@ -116,6 +118,16 @@ export class ReceptionController {
 
       res.status(201).json({ data: result });
     } catch (error: any) {
+      if (error?.message === 'PATIENT_SELECTION_REQUIRED') {
+        res.status(409).json({
+          error: {
+            code: 'PATIENT_SELECTION_REQUIRED',
+            message:
+              'A patient profile already exists for this phone. Select the existing patient or choose to create a new patient.',
+          },
+        });
+        return;
+      }
       if (error?.message === 'MULTIPLE_PATIENTS_FOUND') {
         res.status(409).json({
           error: {

@@ -7,6 +7,7 @@ import { ConfigResolverService } from './ConfigResolverService';
 export type ReceptionIntakeInput = {
   hospitalId: string;
   patientId?: string | null;
+  forceNewPatient?: boolean;
   patient: {
     phone: string;
     firstName: string;
@@ -43,9 +44,8 @@ export class ReceptionIntakeService {
       // Patient selection rules:
       // - If patientId is provided, it MUST exist (scoped to hospital) and we update that record.
       // - If patientId is not provided:
-      //    - 0 matches by phone -> create
-      //    - 1 match by phone  -> update that record
-      //    - >1 matches by phone -> require explicit selection to avoid overwriting wrong profile
+      //    - If forceNewPatient=true -> always create new patient (even if phone matches existing)
+      //    - Otherwise -> require explicit selection; do NOT update by phone to avoid overwriting wrong profile
       let patient: Patient | null = null;
 
       if (input.patientId) {
@@ -54,17 +54,18 @@ export class ReceptionIntakeService {
           transaction,
         });
         if (!patient) throw new Error('PATIENT_NOT_FOUND');
-      } else {
+      } else if (!input.forceNewPatient) {
         const matches = await Patient.findAll({
           where: { hospitalId, phone },
           transaction,
           order: [['updatedAt', 'DESC']],
           limit: 2,
         });
-        if (matches.length > 1) {
-          throw new Error('MULTIPLE_PATIENTS_FOUND');
+        if (matches.length >= 1) {
+          // Even a single match requires explicit selection to avoid overwriting.
+          throw new Error(matches.length > 1 ? 'MULTIPLE_PATIENTS_FOUND' : 'PATIENT_SELECTION_REQUIRED');
         }
-        patient = matches[0] || null;
+        patient = null;
       }
 
       const dob = this.approximateDobFromAge(input.patient.age);
