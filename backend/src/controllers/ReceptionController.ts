@@ -3,6 +3,9 @@ import { AuthRequest } from '../middleware/auth';
 import { ReceptionIntakeService } from '../services/ReceptionIntakeService';
 import Doctor from '../models/Doctor';
 import Visit from '../models/Visit';
+import VisitHistory from '../models/VisitHistory';
+import { Op } from 'sequelize';
+import sequelize from '../config/database';
 
 export class ReceptionController {
   private static async assertReceptionistScope(
@@ -104,6 +107,71 @@ export class ReceptionController {
         });
         return;
       }
+      next(error);
+    }
+  }
+
+  /**
+   * Get today's quick metrics (scoped to active hospital; receptionist may be department-scoped)
+   * GET /api/v1/reception/metrics/today
+   */
+  static async metricsToday(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user?.hospitalId) {
+        res.status(400).json({
+          error: { code: 'BAD_REQUEST', message: 'Hospital context required' },
+        });
+        return;
+      }
+
+      const hospitalId = req.user.hospitalId;
+      const membership = (req as any).membership as any | undefined;
+      const scopedDepartmentId =
+        req.user.role === 'RECEPTIONIST' ? (membership?.departmentId as string | null | undefined) : null;
+
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+
+      const visitWhere: any = {
+        hospitalId,
+        checkedInAt: { [Op.gte]: start, [Op.lt]: end },
+        status: { [Op.notIn]: ['CANCELLED', 'NO_SHOW'] },
+      };
+      if (scopedDepartmentId) visitWhere.departmentId = scopedDepartmentId;
+
+      const doctorsWhere: any = { hospitalId, status: 'ACTIVE' };
+      if (scopedDepartmentId) doctorsWhere.departmentId = scopedDepartmentId;
+
+      const waitWhere: any = {
+        hospitalId,
+        completedAt: { [Op.gte]: start, [Op.lt]: end },
+        actualWaitTime: { [Op.ne]: null },
+      };
+      if (scopedDepartmentId) waitWhere.departmentId = scopedDepartmentId;
+
+      const [todaysVisits, activeDoctors, avgWaitRow] = await Promise.all([
+        Visit.count({ where: visitWhere }),
+        Doctor.count({ where: doctorsWhere }),
+        VisitHistory.findOne({
+          where: waitWhere,
+          attributes: [[sequelize.fn('AVG', sequelize.col('actualWaitTime')), 'avgWait']],
+          raw: true,
+        }),
+      ]);
+
+      const avgWait = avgWaitRow ? Number((avgWaitRow as any).avgWait) : NaN;
+      const averageWaitMinutes = Number.isFinite(avgWait) ? Math.round(avgWait) : 0;
+
+      res.json({
+        data: {
+          todaysVisits,
+          averageWaitMinutes,
+          activeDoctors,
+        },
+      });
+    } catch (error) {
       next(error);
     }
   }

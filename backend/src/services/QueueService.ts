@@ -13,6 +13,8 @@ import { getQueueLockKey, withLock } from '../utils/redisLock';
 import { publishEvent } from '../config/rabbitmq';
 import { differenceInMinutes } from 'date-fns';
 import { ConfigResolverService } from './ConfigResolverService';
+import sequelize from '../config/database';
+import { subDays } from 'date-fns';
 
 export interface QueueItem {
   id: string;
@@ -37,6 +39,77 @@ export interface QueueResponse {
  * Service for managing queue operations
  */
 export class QueueService {
+  private static async getDoctorPaceMinutes(
+    hospitalId: string,
+    doctorId: string,
+    fallbackMinutes: number
+  ): Promise<number> {
+    // Use recent actual consultation durations to estimate pace (doctor calling pattern).
+    // Keep it robust: ignore extreme outliers.
+    const since = subDays(new Date(), 7);
+
+    const rows = await VisitHistory.findAll({
+      where: {
+        hospitalId,
+        doctorId,
+        actualConsultationDuration: { [Op.ne]: null },
+        completedAt: { [Op.gte]: since },
+      } as any,
+      attributes: ['actualConsultationDuration'],
+      order: [['completedAt', 'DESC']],
+      limit: 20,
+    });
+
+    const vals = rows
+      .map((r: any) => Number(r.actualConsultationDuration))
+      .filter((n) => Number.isFinite(n) && n >= 3 && n <= 120)
+      .sort((a, b) => a - b);
+
+    if (vals.length < 5) return fallbackMinutes;
+
+    // trimmed mean (drop top/bottom 10%)
+    const trim = Math.floor(vals.length * 0.1);
+    const core = vals.slice(trim, vals.length - trim);
+    const avg = core.reduce((a, b) => a + b, 0) / core.length;
+
+    return Math.max(3, Math.min(60, Math.round(avg)));
+  }
+
+  private static async getPaceByDoctor(
+    hospitalId: string,
+    doctorIds: string[],
+    fallbackMinutes: number
+  ): Promise<Record<string, number>> {
+    if (doctorIds.length === 0) return {};
+    const since = subDays(new Date(), 7);
+
+    const rows = await VisitHistory.findAll({
+      where: {
+        hospitalId,
+        doctorId: { [Op.in]: doctorIds },
+        actualConsultationDuration: { [Op.ne]: null },
+        completedAt: { [Op.gte]: since },
+      } as any,
+      attributes: ['doctorId', [sequelize.fn('AVG', sequelize.col('actualConsultationDuration')), 'avgMinutes']],
+      group: ['doctorId'],
+    });
+
+    const map: Record<string, number> = {};
+    for (const r of rows as any[]) {
+      const avg = Number(r.get('avgMinutes'));
+      if (Number.isFinite(avg) && avg > 0) {
+        map[String(r.get('doctorId'))] = Math.max(3, Math.min(60, Math.round(avg)));
+      }
+    }
+
+    // Ensure all doctors have a value
+    for (const id of doctorIds) {
+      if (!map[id]) map[id] = fallbackMinutes;
+    }
+
+    return map;
+  }
+
   /**
    * Get current queue for a doctor
    */
@@ -55,11 +128,17 @@ export class QueueService {
       doctor.departmentId
     );
 
-    const consultationDuration =
+    const fallbackDuration =
       doctor.consultationDuration ||
       deptCfg.defaultConsultationDuration ||
       hospitalConfig?.defaultConsultationDuration ||
       15;
+
+    const consultationDuration = await this.getDoctorPaceMinutes(
+      hospitalId,
+      doctorId,
+      fallbackDuration
+    );
 
     const visits = await Visit.findAll({
       where: {
@@ -146,12 +225,21 @@ export class QueueService {
 
     const sortedVisits = sortQueueByPriority(visits);
 
+    const doctorIds = Array.from(
+      new Set(sortedVisits.map((v: any) => v.doctorId).filter(Boolean))
+    ) as string[];
+    const paceByDoctor = await this.getPaceByDoctor(
+      hospitalId,
+      doctorIds,
+      defaultConsultationDuration
+    );
+
     const queue: QueueItem[] = sortedVisits.map((visit: any, index) => {
       const queueAhead = sortedVisits.slice(0, index);
       const estimatedWaitTime = calculateEstimatedWaitTime(
         visit,
         queueAhead,
-        defaultConsultationDuration
+        (v) => paceByDoctor[(v as any).doctorId] || defaultConsultationDuration
       );
 
       return {

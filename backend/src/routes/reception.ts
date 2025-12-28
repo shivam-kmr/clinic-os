@@ -9,6 +9,11 @@ router.use(authenticate);
 router.use(requireHospitalContext);
 
 router.post('/intake', requireRole('RECEPTIONIST', 'HOSPITAL_OWNER', 'HOSPITAL_MANAGER', 'SUPERADMIN'), ReceptionController.intake);
+router.get(
+  '/metrics/today',
+  requireRole('RECEPTIONIST', 'HOSPITAL_OWNER', 'HOSPITAL_MANAGER', 'SUPERADMIN'),
+  ReceptionController.metricsToday
+);
 
 export default router;
 
