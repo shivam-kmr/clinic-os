@@ -15,7 +15,7 @@ export type Testimonial = {
   role: TestimonialRole;
   organization: string;
   city: string;
-  rating: 4 | 5;
+  rating: 3 | 4 | 5;
   text: string;
   dateLabel: string;
 };
@@ -168,9 +168,12 @@ function makeCity(i: number) {
   return pick(indianCities, i * 9 + 4);
 }
 
-function makeRating(i: number): 4 | 5 {
-  // ~12% 4-star, rest 5-star
-  return i % 8 === 0 ? 4 : 5;
+function makeRating(i: number): 3 | 4 | 5 {
+  // Roughly 20% 3-star, 30% 4-star, 50% 5-star (more realistic than "all 5s").
+  const m = i % 10;
+  if (m < 2) return 3;
+  if (m < 5) return 4;
+  return 5;
 }
 
 function makeText(role: TestimonialRole, i: number) {

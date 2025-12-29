@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Search, Star } from 'lucide-react';
+import { Search, Star } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { generateTestimonials, type TestimonialRole } from '@/lib/testimonials';
 import { CalDemoButton } from '@/components/CalDemoPopup';
+import { PublicLayout } from '@/components/PublicLayout';
 
-const ALL_REVIEWS_COUNT = 847;
+const ALL_REVIEWS_COUNT = 447;
+const AVERAGE_RATING = 4.3;
 
 const roleFilters: Array<TestimonialRole | 'All'> = [
   'All',
@@ -43,30 +45,13 @@ export default function TestimonialsPage() {
   }, [all, query, role]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center gap-4">
-          <Link to="/" className="flex items-center gap-2 min-w-0">
-            <Building2 className="h-6 w-6 text-primary" />
-            <div className="text-xl font-bold truncate">Clinic OS</div>
-          </Link>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link to="/login">Login</Link>
-            </Button>
-            <Button asChild>
-              <Link to="/login">Get Started</Link>
-            </Button>
-          </div>
-        </div>
-      </header>
-
+    <PublicLayout>
       <main className="container mx-auto px-4 py-10">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
           <div className="min-w-0">
             <h1 className="text-3xl md:text-4xl font-bold">Customer Reviews</h1>
             <p className="text-muted-foreground mt-2">
-              4.9/5 average • {ALL_REVIEWS_COUNT} reviews
+              4.3/5 average • {ALL_REVIEWS_COUNT} reviews
             </p>
           </div>
 
@@ -96,9 +81,16 @@ export default function TestimonialsPage() {
 
         <div className="flex items-center gap-2 mb-6">
           {[...Array(5)].map((_, i) => (
-            <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+            <Star
+              key={i}
+              className={
+                i < Math.floor(AVERAGE_RATING)
+                  ? 'h-4 w-4 fill-yellow-400 text-yellow-400'
+                  : 'h-4 w-4 text-muted-foreground'
+              }
+            />
           ))}
-          <span className="text-sm font-medium">4.9/5</span>
+          <span className="text-sm font-medium">{AVERAGE_RATING}/5</span>
           <span className="text-sm text-muted-foreground">({filtered.length} shown)</span>
         </div>
 
@@ -143,7 +135,7 @@ export default function TestimonialsPage() {
           </Card>
         </div>
       </main>
-    </div>
+    </PublicLayout>
   );
 }
 

@@ -181,7 +181,7 @@ export default function Landing() {
                 <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
               ))}
               <span className="ml-2 text-sm font-medium">4.9/5</span>
-              <span className="text-sm text-muted-foreground ml-1">(2,847 reviews)</span>
+              <span className="text-sm text-muted-foreground ml-1">(447 reviews)</span>
             </div>
           </div>
           {!patient && (

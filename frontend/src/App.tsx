@@ -13,7 +13,9 @@ import AppShell from './components/AppShell';
 import TestimonialsPage from './pages/Testimonials';
 import CertificationsPage from './pages/Certifications';
 import ScheduleDemoPage from './pages/ScheduleDemo';
+import PricingPage from './pages/Pricing';
 import { CalDemoInit } from './components/CalDemoPopup';
+import { ScrollToTop } from './components/ScrollToTop';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
@@ -62,6 +64,7 @@ function App() {
   const AppContent = () => (
     <BrowserRouter>
       <CalDemoInit />
+      <ScrollToTop />
       <Routes>
         <Route
           path="/"
@@ -74,6 +77,7 @@ function App() {
         <Route path="/testimonials" element={<TestimonialsPage />} />
         <Route path="/certifications" element={<CertificationsPage />} />
         <Route path="/schedule-demo" element={<ScheduleDemoPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route
           path="/login"
           element={
