@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../components/ui/card';
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 import AppFooter from '@/components/AppFooter';
 import { CalDemoButton } from '@/components/CalDemoPopup';
+import { CookieConsent } from '@/components/CookieConsent';
 
 // Testimonials from Indian clinics/hospitals
 const testimonials = [
@@ -172,6 +174,9 @@ const features = [
 // ];
 
 export default function Landing() {
+  // Easter egg: hovering (or focusing) the hero headline swaps the copy for a fun alternate tagline.
+  const [isHeroHeadlineEasterEggActive, setIsHeroHeadlineEasterEggActive] = useState(false);
+
   return (
     <div className="min-h-screen bg-background scroll-smooth">
       {/* Header */}
@@ -200,25 +205,45 @@ export default function Landing() {
             <span className="text-sm font-medium">Trusted by 500+ Healthcare Facilities</span>
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 text-foreground">
-            Management System for{' '}
-            <span className="relative inline-block">
-              Modern Clinics
-              <svg
-                className="absolute left-0 -bottom-3 w-full h-[18px] pointer-events-none"
-                viewBox="0 0 300 24"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M6 18 C 60 8, 120 22, 176 14 S 255 10, 294 14"
-                  fill="none"
-                  stroke="rgb(16 185 129)"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity="0.75"
-                />
-              </svg>
+            <span
+              onMouseEnter={() => setIsHeroHeadlineEasterEggActive(true)}
+              onMouseLeave={() => setIsHeroHeadlineEasterEggActive(false)}
+              onFocus={() => setIsHeroHeadlineEasterEggActive(true)}
+              onBlur={() => setIsHeroHeadlineEasterEggActive(false)}
+              tabIndex={0}
+              className="outline-none"
+            >
+              {isHeroHeadlineEasterEggActive ? (
+                <span className="inline-flex items-baseline gap-3 font-semibold">
+                  <span className="font-handwritten font-normal text-4xl md:text-5xl text-muted-foreground">
+                    TL;DR 
+                  </span>
+                  <span>Shopify for Clinics and Hospitals</span>
+                </span>
+              ) : (
+                <>
+                  Management System for{' '}
+                  <span className="relative inline-block">
+                    Modern Clinics
+                    <svg
+                      className="absolute left-0 -bottom-3 w-full h-[18px] pointer-events-none"
+                      viewBox="0 0 300 24"
+                      preserveAspectRatio="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M6 18 C 60 8, 120 22, 176 14 S 255 10, 294 14"
+                        fill="none"
+                        stroke="rgb(16 185 129)"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        opacity="0.75"
+                      />
+                    </svg>
+                  </span>
+                </>
+              )}
             </span>
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
@@ -315,6 +340,29 @@ export default function Landing() {
           </div>
         </div>
 
+        {/* Product Video */}
+        <div className="mb-20">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold mb-3">See Clinic OS in Action</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              A quick walkthrough of how Clinic OS makes reception flow predictable, reduces wait-time confusion, and keeps doctors on pace.
+            </p>
+          </div>
+          <Card className="overflow-hidden rounded-2xl border bg-background shadow-sm">
+            <div className="aspect-video w-full bg-muted">
+              <iframe
+                className="h-full w-full"
+                src="https://www.youtube-nocookie.com/embed/ZK-rNEhJIDs?rel=0"
+                title="Clinic OS Product Overview"
+                loading="lazy"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          </Card>
+        </div>
+
         {/* Testimonials */}
         <div className="mb-20">
           <div className="text-center mb-12">
@@ -367,8 +415,10 @@ export default function Landing() {
               <div className="flex gap-4 justify-center">
                 <Button variant="secondary" size="lg" asChild>
                   <Link to="/login">
-                    Get Started Now
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <span className="inline-flex items-center gap-2">
+                      <span>Get Started Now</span>
+                      <ArrowRight className="h-4 w-4 shrink-0" />
+                    </span>
                   </Link>
                 </Button>
                 <CalDemoButton
@@ -688,6 +738,8 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      <CookieConsent />
     </div>
   );
 }
