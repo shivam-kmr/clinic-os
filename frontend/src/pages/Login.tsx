@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
+import { Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { setActiveHospitalId, type Membership } from '@/lib/clinic';
 import AppFooter from '@/components/AppFooter';
+import { MARKETING_BASE_URL } from '@/lib/urls';
 
 function selectDefaultHospital(memberships: Membership[]) {
   if (memberships.length === 1) return memberships[0].hospitalId;
@@ -109,6 +111,18 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <header className="border-b bg-white">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <a
+            href={MARKETING_BASE_URL}
+            className="inline-flex items-center gap-2 font-semibold text-foreground hover:opacity-90"
+          >
+            <Building2 className="h-5 w-5 text-primary" />
+            <span>Clinic OS</span>
+          </a>
+        </div>
+      </header>
+
       <div className="flex-1 flex items-center justify-center px-4">
         <Card className="w-full max-w-md">
           <CardHeader>
