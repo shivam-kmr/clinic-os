@@ -2,9 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Clinic OS</title>
+    <title>Clinic OS | Clinic Queue Management &amp; Appointment Booking</title>
+    <meta
+      name="description"
+      content="Clinic OS helps clinics and hospitals run smoother: queue management, patient flow visibility, online appointment booking, prescriptions, billing, and compliant data storage."
+    />
+    <link rel="canonical" href="https://www.useclinicos.com/" />
+
+    <!-- Social previews -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Clinic OS" />
+    <meta property="og:title" content="Clinic OS | Clinic Queue Management &amp; Appointment Booking" />
+    <meta
+      property="og:description"
+      content="Queue management and patient flow software for clinics: appointments, prescriptions, billing, and compliant data storage."
+    />
+    <meta property="og:url" content="https://www.useclinicos.com/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Clinic OS | Clinic Queue Management &amp; Appointment Booking" />
+    <meta
+      name="twitter:description"
+      content="Queue management and patient flow software for clinics: appointments, prescriptions, billing, and compliant data storage."
+    />
+
+    <!-- Structured data (basic) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Clinic OS",
+        "url": "https://www.useclinicos.com/"
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -12,15 +43,41 @@
       as="style"
       href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap"
     />
+    <!-- Make Google Fonts non-render-blocking (with noscript fallback) -->
     <link
-      rel="stylesheet"
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap"
+      />
+    </noscript>
     <script
       defer
       src="https://cloud.umami.is/script.js"
       data-website-id="c41531d7-b37f-4d3d-b6b6-de6705315a0d"
     ></script>
+    <!-- Optional Google Analytics (GA4) -->
+    <script type="module">
+      const gaId = import.meta.env.VITE_GA_ID;
+      if (gaId) {
+        const s = document.createElement('script');
+        s.async = true;
+        s.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        function gtag() {
+          // eslint-disable-next-line prefer-rest-params
+          window.dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+        gtag('config', gaId);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

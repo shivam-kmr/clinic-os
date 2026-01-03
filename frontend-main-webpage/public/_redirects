@@ -1,0 +1,9 @@
+# Canonical host redirects (Cloudflare Pages)
+https://useclinicos.com/* https://www.useclinicos.com/:splat 301
+http://useclinicos.com/* https://www.useclinicos.com/:splat 301
+http://www.useclinicos.com/* https://www.useclinicos.com/:splat 301
+
+# SPA fallback (keep last)
+/* /index.html 200
+
+

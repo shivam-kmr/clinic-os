@@ -12,6 +12,7 @@ const CertificationsPage = React.lazy(() => import('@/pages/Certifications'));
 const ScheduleDemoPage = React.lazy(() => import('@/pages/ScheduleDemo'));
 const BlogsPage = React.lazy(() => import('@/pages/Blogs'));
 const BlogPostPage = React.lazy(() => import('@/pages/BlogPost'));
+const NotFoundPage = React.lazy(() => import('@/pages/NotFound'));
 
 function RedirectIfTokenPresent() {
   React.useEffect(() => {
@@ -43,7 +44,7 @@ export default function MarketingApp() {
           <Route path="/blogs" element={<BlogsPage />} />
           <Route path="/blogs/:slug" element={<BlogPostPage />} />
           {/* Any other route should land on the marketing homepage */}
-          <Route path="*" element={<Landing />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </React.Suspense>
     </>
