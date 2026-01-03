@@ -16,7 +16,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, '../frontend/src'),
     },
     // Ensure we don't bundle multiple React copies when importing from ../frontend.
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    // Also dedupe router packages since both this app and ../frontend import them,
+    // and duplicate copies will break Router context (white page + invariant errors).
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react-router', 'react-router-dom'],
   },
   server: {
     fs: {
