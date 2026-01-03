@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Award, Building2, CheckCircle2, Lock, Shield } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { APP_LOGIN_URL } from '@/lib/urls';
 
 const certifications = [
   {
@@ -47,10 +48,10 @@ export default function CertificationsPage() {
           </Link>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-              <Link to="/login">Login</Link>
+              <a href={APP_LOGIN_URL}>Login</a>
             </Button>
             <Button asChild>
-              <Link to="/login">Get Started</Link>
+              <a href={APP_LOGIN_URL}>Get Started</a>
             </Button>
           </div>
         </div>
@@ -84,7 +85,7 @@ export default function CertificationsPage() {
 
         <div className="mt-10 flex flex-col sm:flex-row gap-3">
           <Button asChild>
-            <Link to="/login">Talk to Sales</Link>
+            <a href={APP_LOGIN_URL}>Talk to Sales</a>
           </Button>
           <Button variant="outline" asChild>
             <Link to="/">Back to Home</Link>

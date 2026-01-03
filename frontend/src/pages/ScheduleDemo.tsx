@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalDemoButton } from '@/components/CalDemoPopup';
 import { getDemoCalLinkFromEnv } from '@/lib/cal';
+import { APP_LOGIN_URL } from '@/lib/urls';
 
 export default function ScheduleDemoPage() {
   const calLink = getDemoCalLinkFromEnv();
@@ -18,10 +19,10 @@ export default function ScheduleDemoPage() {
           </Link>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-              <Link to="/login">Login</Link>
+              <a href={APP_LOGIN_URL}>Login</a>
             </Button>
             <Button asChild>
-              <Link to="/login">Get Started</Link>
+              <a href={APP_LOGIN_URL}>Get Started</a>
             </Button>
           </div>
         </div>

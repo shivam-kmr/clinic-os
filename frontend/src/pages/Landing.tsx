@@ -22,10 +22,12 @@ import {
   FileText,
   Volume2,
   VolumeX,
+  RotateCcw,
 } from 'lucide-react';
 import AppFooter from '@/components/AppFooter';
 import { CalDemoButton } from '@/components/CalDemoPopup';
 import { CookieConsent } from '@/components/CookieConsent';
+import { APP_LOGIN_URL } from '@/lib/urls';
 
 // Testimonials from Indian clinics/hospitals
 const testimonials = [
@@ -205,10 +207,10 @@ export default function Landing() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-              <Link to="/login">Login</Link>
+              <a href={APP_LOGIN_URL}>Login</a>
             </Button>
             <Button asChild>
-              <Link to="/login">Get Started</Link>
+              <a href={APP_LOGIN_URL}>Get Started</a>
             </Button>
           </div>
         </div>
@@ -270,7 +272,7 @@ export default function Landing() {
 
           <div className="flex gap-4 justify-center">
             <Button size="lg" asChild>
-              <Link to="/login">Start Free</Link>
+              <a href={APP_LOGIN_URL}>Start Free</a>
             </Button>
             <CalDemoButton size="lg" variant="outline">
               Schedule Demo
@@ -372,31 +374,61 @@ export default function Landing() {
                     video.pause();
                   }}
                 />
-                <button
-                  type="button"
-                  aria-label={isDemoVideoMuted ? 'Unmute video' : 'Mute video'}
-                  className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-background/60 px-3 py-2 text-sm font-medium text-foreground shadow-sm backdrop-blur hover:bg-background/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const video = demoVideoRef.current;
-                    if (!video) return;
+                <div className="absolute right-3 top-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label="Restart video from beginning (with sound)"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-background/60 text-foreground shadow-sm backdrop-blur hover:bg-background/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const video = demoVideoRef.current;
+                      if (!video) return;
 
-                    demoVideoMuteLockedByUserRef.current = true;
-                    const nextMuted = !isDemoVideoMuted;
-                    setIsDemoVideoMuted(nextMuted);
-                    video.muted = nextMuted;
+                      // User intent: restart AND enable sound.
+                      demoVideoMuteLockedByUserRef.current = true;
+                      setIsDemoVideoMuted(false);
+                      video.muted = false;
 
-                    // If the user unmutes while paused (e.g., autoplay blocked), try to start playback.
-                    if (!nextMuted && video.paused) {
+                      try {
+                        video.currentTime = 0;
+                      } catch {
+                        // no-op
+                      }
+
                       void video.play().catch(() => {
                         // no-op
                       });
-                    }
-                  }}
-                >
-                  {isDemoVideoMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                  <span className="leading-none">{isDemoVideoMuted ? 'Muted' : 'Sound on'}</span>
-                </button>
+                    }}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label={isDemoVideoMuted ? 'Unmute video' : 'Mute video'}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-background/60 px-3 py-2 text-sm font-medium text-foreground shadow-sm backdrop-blur hover:bg-background/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const video = demoVideoRef.current;
+                      if (!video) return;
+
+                      demoVideoMuteLockedByUserRef.current = true;
+                      const nextMuted = !isDemoVideoMuted;
+                      setIsDemoVideoMuted(nextMuted);
+                      video.muted = nextMuted;
+
+                      // If the user unmutes while paused (e.g., autoplay blocked), try to start playback.
+                      if (!nextMuted && video.paused) {
+                        void video.play().catch(() => {
+                          // no-op
+                        });
+                      }
+                    }}
+                  >
+                    {isDemoVideoMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                    <span className="leading-none">{isDemoVideoMuted ? 'Muted' : 'Sound on'}</span>
+                  </button>
+                </div>
               </div>
             </Card>
           </div>
@@ -410,11 +442,12 @@ export default function Landing() {
               See what clinics and hospital teams across India are saying about Clinic OS
             </p>
           </div>
-          <div className="flex gap-6 overflow-x-auto pb-2 snap-x snap-mandatory">
+          {/* Mobile: stack cards (no horizontal scroll). Desktop: single-row scroller. */}
+          <div className="grid gap-4 sm:grid-cols-2 md:flex md:gap-6 md:overflow-x-auto md:pb-2 md:snap-x md:snap-mandatory">
             {testimonials.map((testimonial) => (
               <Card
                 key={testimonial.id}
-                className="relative flex-shrink-0 snap-start w-[260px] sm:w-[280px] md:w-[320px] lg:w-[calc((100%-48px)/3)]"
+                className="relative w-full md:flex-shrink-0 md:snap-start md:w-[320px] lg:w-[calc((100%-48px)/3)]"
               >
                 <CardHeader className="p-4 pb-3">
                   <Quote className="h-6 w-6 text-primary/20 absolute top-3 right-3" />
@@ -460,12 +493,12 @@ export default function Landing() {
             <CardContent>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button variant="secondary" size="lg" className="w-full sm:w-auto" asChild>
-                  <Link to="/login">
+                  <a href={APP_LOGIN_URL}>
                     <span className="inline-flex items-center gap-2">
                       <span>Get Started Now</span>
                       <ArrowRight className="h-4 w-4 shrink-0" />
                     </span>
-                  </Link>
+                  </a>
                 </Button>
                 <CalDemoButton
                   variant="outline"
@@ -591,7 +624,7 @@ export default function Landing() {
               </CardContent>
               <CardFooter className="mt-auto">
                 <Button className="w-full" asChild>
-                  <Link to="/login">Get Started</Link>
+                  <a href={APP_LOGIN_URL}>Get Started</a>
                 </Button>
               </CardFooter>
             </Card>
@@ -677,6 +710,11 @@ export default function Landing() {
                 <li>
                   <Link to="/pricing" className="hover:text-primary">
                     Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/blogs" className="hover:text-primary">
+                    Blog
                   </Link>
                 </li>
                 <li>

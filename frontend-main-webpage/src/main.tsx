@@ -1,0 +1,17 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import MarketingApp from './marketingApp';
+
+// Reuse the main frontend styles.
+import '../../frontend/src/index.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <MarketingApp />
+    </BrowserRouter>
+  </React.StrictMode>,
+);
+
+

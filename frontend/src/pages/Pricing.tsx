@@ -5,6 +5,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { PublicLayout } from '@/components/PublicLayout';
+import { APP_LOGIN_URL } from '@/lib/urls';
 
 type PlanKey = 'free' | 'growth' | 'enterprise';
 
@@ -67,7 +68,7 @@ export default function PricingPage() {
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Button asChild>
-              <Link to="/login">Get Started</Link>
+              <a href={APP_LOGIN_URL}>Get Started</a>
             </Button>
             <Button variant="outline" asChild>
               <Link to="/schedule-demo">Talk to Sales</Link>
@@ -94,7 +95,7 @@ export default function PricingPage() {
             </CardContent>
             <CardFooter>
               <Button className="w-full" asChild>
-                <Link to="/login">Get Started</Link>
+                <a href={APP_LOGIN_URL}>Get Started</a>
               </Button>
             </CardFooter>
           </Card>
@@ -206,7 +207,7 @@ export default function PricingPage() {
               <Link to="/schedule-demo">Schedule Demo</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/login">Start Free</Link>
+              <a href={APP_LOGIN_URL}>Start Free</a>
             </Button>
           </div>
         </div>

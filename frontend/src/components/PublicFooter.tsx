@@ -38,6 +38,11 @@ export function PublicFooter() {
                 </Link>
               </li>
               <li>
+                <Link to="/blogs" className="hover:text-primary">
+                  Blog
+                </Link>
+              </li>
+              <li>
                 <Link to="/#security" className="hover:text-primary">
                   Security
                 </Link>

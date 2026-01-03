@@ -35,13 +35,47 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
+  ({ className, variant, size, asChild, children, disabled, type, ...props }, ref) => {
+    const mergedClassName = cn(
+      buttonVariants({ variant, size, className }),
+      // When rendering asChild (e.g. <a>), "disabled:" styles won't apply, so add them explicitly.
+      asChild && disabled && 'pointer-events-none opacity-50'
+    );
+
+    if (asChild) {
+      if (!React.isValidElement(children)) return null;
+      const child = children as React.ReactElement<any>;
+      const childProps = child.props as any;
+
+      const childOnClick = childProps?.onClick as React.MouseEventHandler | undefined;
+      const onClick: React.MouseEventHandler = (e) => {
+        if (disabled) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        childOnClick?.(e);
+      };
+
+      return React.cloneElement(child as any, {
+        ...(props as any),
+        className: cn(mergedClassName, childProps?.className),
+        onClick,
+        'aria-disabled': disabled || undefined,
+        tabIndex: disabled ? -1 : childProps?.tabIndex,
+      } as any);
+    }
+
     return (
       <button
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={mergedClassName}
         ref={ref}
+        disabled={disabled}
+        type={type}
         {...props}
-      />
+      >
+        {children}
+      </button>
     );
   }
 );

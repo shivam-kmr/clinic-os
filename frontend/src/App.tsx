@@ -6,16 +6,12 @@ import WaitingRoom from './pages/WaitingRoom';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import HospitalSetup from './pages/HospitalSetup';
-import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import Team from './pages/Team';
 import AppShell from './components/AppShell';
-import TestimonialsPage from './pages/Testimonials';
-import CertificationsPage from './pages/Certifications';
-import ScheduleDemoPage from './pages/ScheduleDemo';
-import PricingPage from './pages/Pricing';
 import { CalDemoInit } from './components/CalDemoPopup';
 import { ScrollToTop } from './components/ScrollToTop';
+import { MARKETING_BASE_URL } from './lib/urls';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
@@ -59,25 +55,21 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function ExternalRedirect({ to }: { to: string }) {
+  // Use an effect-less redirect to keep it simple.
+  window.location.replace(to);
+  return null;
+}
+
 function App() {
   // Only wrap with GoogleOAuthProvider if client ID is configured
   const AppContent = () => (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <CalDemoInit />
       <ScrollToTop />
       <Routes>
-        <Route
-          path="/"
-          element={
-            <PublicOnly>
-              <Landing />
-            </PublicOnly>
-          }
-        />
-        <Route path="/testimonials" element={<TestimonialsPage />} />
-        <Route path="/certifications" element={<CertificationsPage />} />
-        <Route path="/schedule-demo" element={<ScheduleDemoPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
+        {/* App entrypoint: default to Login; marketing lives on the main site */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route
           path="/login"
           element={
@@ -86,7 +78,19 @@ function App() {
             </PublicOnly>
           }
         />
-        <Route path="/auth/callback" element={<AuthCallback />} />
+        {/* If a user hits old marketing routes on the app, bounce them to the marketing domain. */}
+        <Route path="/pricing" element={<ExternalRedirect to={`${MARKETING_BASE_URL}/pricing`} />} />
+        <Route path="/testimonials" element={<ExternalRedirect to={`${MARKETING_BASE_URL}/testimonials`} />} />
+        <Route path="/certifications" element={<ExternalRedirect to={`${MARKETING_BASE_URL}/certifications`} />} />
+        <Route path="/schedule-demo" element={<ExternalRedirect to={`${MARKETING_BASE_URL}/schedule-demo`} />} />
+        <Route
+          path="/auth/callback"
+          element={
+            <PublicOnly>
+              <AuthCallback />
+            </PublicOnly>
+          }
+        />
         <Route
           element={
             <RequireAuth>
@@ -115,7 +119,7 @@ function App() {
           />
         </Route>
         <Route path="/waiting-room/:departmentId" element={<WaitingRoom />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
